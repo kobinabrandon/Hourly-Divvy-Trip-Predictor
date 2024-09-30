@@ -14,7 +14,7 @@ from datetime import timedelta
 
 from src.setup.config import config 
 from src.inference_pipeline.frontend.main import ProgressTracker
-from src.inference_pipeline.frontend.data import load_local_geojson, make_geodataframes, reconcile_geodata
+from src.inference_pipeline.frontend.data import make_geodataframes, reconcile_geodata
 from src.inference_pipeline.frontend.predictions import retrieve_predictions, retrieve_predictions_for_this_hour
 
 

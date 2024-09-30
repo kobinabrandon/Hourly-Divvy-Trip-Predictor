@@ -238,7 +238,7 @@ def make_json_of_names_and_ids(scenario: str, using_mixed_indexer: bool = True) 
     with open(save_path / f"{scenario}_geodata.json", mode="r") as file:
         geodata = json.load(file)
 
-    names_and_ids = {detail["station_name"]: detail["station_id"] for detail in geodata}
+    names_and_ids = {detail["station_id"]: detail["station_name"] for detail in geodata}
     with open(save_path / f"{scenario}_stations_and_ids.json", mode="w") as file:
         json.dump(names_and_ids, file)
 

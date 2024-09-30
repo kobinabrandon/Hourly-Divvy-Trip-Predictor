@@ -10,6 +10,7 @@ keyfile
 /data/cleaned
 /data/raw
 /data/transformed
+/data/geographical/rounding_indexer
 
 /BACKUP
 /models

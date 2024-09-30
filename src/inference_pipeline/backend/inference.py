@@ -5,6 +5,8 @@ This module contains code that:
 - loads model predictions from the Hopsworks feature store.
 - performs inference on features
 """
+import os
+import json
 import numpy as np
 import pandas as pd
 
@@ -73,7 +75,7 @@ class InferenceModule:
         Returns:
             pd.DataFrame: time series data 
         """ 
-        fetch_from = target_date - timedelta(days=20)
+        fetch_from = target_date - timedelta(days=60)
 
         feature_view: FeatureView = self.api.get_or_create_feature_view(
             name=f"{self.scenario}_feature_view",
@@ -93,7 +95,7 @@ class InferenceModule:
         )
 
         station_ids = ts_data[f"{self.scenario}_station_id"].unique()
-        features = self.make_features(station_ids=station_ids, ts_data=ts_data, geocode=False)
+        features = self.make_features(station_ids=station_ids, ts_data=ts_data, geocode=geocode)
 
         # Include the {self.scenario}_hour column and the IDs
         features[f"{self.scenario}_hour"] = target_date

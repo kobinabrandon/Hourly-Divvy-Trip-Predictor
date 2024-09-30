@@ -45,18 +45,16 @@ class BackFiller:
         """
         self.api.event_time = "timestamp"
         self.api.primary_key = ["timestamp", f"{self.scenario}_station_id"]
-
         processor = DataProcessor(year=config.year, for_inference=False)
         ts_data = processor.make_time_series()[0] if self.scenario == "start" else processor.make_time_series()[1]
 
         ts_data["timestamp"] = pd.to_datetime(ts_data[f"{scenario}_hour"]).astype(int) // 10 ** 6  # Express in ms
 
         logger.info(
-            f"There are {len(ts_data[f"{self.scenario}_station_id"].unique())} stations in the time series data for \
-            {config.displayed_scenario_names[self.scenario].lower()}"
+            f"There are {len(ts_data[f"{self.scenario}_station_id"].unique())} stations in the time series data for\
+                {config.displayed_scenario_names[self.scenario].lower()}"
         )
-        breakpoint()
-        #  ts_data = ts_data.drop(f"{scenario}_hour", axis=1)
+
         feature_group = self.api.setup_feature_group(
             description=f"Hourly time series data for {config.displayed_scenario_names[self.scenario].lower()}",
             name=f"{self.scenario}_feature_group",
@@ -100,7 +98,7 @@ class BackFiller:
         model = registry.download_latest_model(unzip=True)
 
         features = inferrer.fetch_time_series_and_make_features(target_date=datetime.now(), geocode=False)
-
+        
         try:
             features = features.drop(["trips_next_hour", f"{scenario}_hour"], axis=1)
         except Exception as error:
@@ -111,10 +109,11 @@ class BackFiller:
 
         if include_station_names:
             json_path = MIXED_INDEXER if using_mixed_indexer else ROUNDING_INDEXER
-            with open(MIXED_INDEXER / f"{scenario}_names_and_ids.json", mode="r") as file:
-                names_and_ids = json.load(file)
-
-            predictions[f"{scenario}_station_name"] = predictions[f"{scenario}_station_id"].map(names_and_ids)
+            with open(json_path / f"{scenario}_names_and_ids.json", mode="r") as file:
+                ids_and_names = json.load(file)
+                
+            ids_and_names = {int(code): name for code, name in ids_and_names}  # Make sure the IDs are integers here
+            predictions[f"{scenario}_station_name"] = predictions[f"{scenario}_station_id"].map(ids_and_names)
 
         logger.info(
             f"There are {len(predictions_df[f"{self.scenario}_station_id"].unique())} stations in the predictions \
