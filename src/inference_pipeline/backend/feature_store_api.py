@@ -4,11 +4,6 @@ feature store API.
 """
 import hopsworks
 from loguru import logger
-from hsfs.feature_view import FeatureView
-from hsfs.feature_store import FeatureStore
-from hsfs.feature_group import FeatureGroup
-from hsfs.constructor.query import Query
-
 
 class FeatureStoreAPI:
     def __init__(
