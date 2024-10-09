@@ -1,4 +1,5 @@
 import os 
+import subprocess
 from pathlib import Path 
 
 
@@ -24,13 +25,23 @@ TIME_SERIES_DATA = TRANSFORMED_DATA/"time_series"
 TRAINING_DATA = TRANSFORMED_DATA/"training_data"
 INFERENCE_DATA = TRANSFORMED_DATA/"inference"
 
+FEATURE_REPO = PARENT_DIR/"src"/"inference_pipeline"/"backend"/"feast"/"feature_repo"
+FEATURE_REPO_DATA = FEATURE_REPO/"data"
 
-def make_fundamental_paths() -> None:
-    for path in [
+
+def make_fundamental_paths(add_feature_repo: bool = False) -> None:
+
+    paths_to_open = [
         DATA_DIR, CLEANED_DATA, RAW_DATA_DIR, PARQUETS, GEOGRAPHICAL_DATA, TRANSFORMED_DATA, TIME_SERIES_DATA, 
         IMAGES_DIR, TRAINING_DATA, INFERENCE_DATA, MODELS_DIR, LOCAL_SAVE_DIR, COMET_SAVE_DIR, ROUNDING_INDEXER,
         MIXED_INDEXER
-    ]: 
+    ]
+ 
+    if add_feature_repo:
+        os.system(command="feast init feast")
+        paths_to_open.extend([FEATURE_REPO, FEATURE_REPO_DATA])
+
+    for path in paths_to_open: 
         if not Path(path).exists():
             os.mkdir(path)
 

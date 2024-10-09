@@ -125,6 +125,10 @@ def load_raw_data(year: int, months: list[int] = None) -> pd.DataFrame:
     """
     Download or load the data for either the specified months of the year in question, or 
     for all months up to the present month (if the data being sought is from this year).
+
+    The function begins by ensuring that the Feast feature store is created at the very
+    beginning of the whole project, along with all the other directories where data is to
+    be stored.
     
     Args:
         year (int): the year whose data we want to load
@@ -133,7 +137,7 @@ def load_raw_data(year: int, months: list[int] = None) -> pd.DataFrame:
     Yields:
         Iterator[pd.DataFrame]: the requested datasets.
     """
-    make_fundamental_paths()
+    make_fundamental_paths(add_feature_repo=True) 
     is_current_year = True if year == dt.now().year else False
     end_month = dt.now().month if is_current_year else 12
     months_to_download = range(1, end_month + 1) if months is None else months

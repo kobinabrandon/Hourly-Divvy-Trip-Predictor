@@ -8,7 +8,6 @@ import requests
 import numpy as np
 import pandas as pd
 import streamlit as st
-import geopandas as gpd 
 
 from tqdm import tqdm
 from pathlib import Path
