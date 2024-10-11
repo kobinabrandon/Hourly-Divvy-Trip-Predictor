@@ -6,7 +6,6 @@ authors = ["kobina <maadabrandon@protonmail.com>"]
 
 [tool.poetry.dependencies]
 python = ">3.9.7, <=3.12.6"
-python = ">3.9.7, <=3.12.6"
 pandas = "<2.2.0"
 pyarrow = "^14.0.2"
 requests = "^2.31.0"
@@ -27,4 +26,4 @@ optuna = "^3.6.1"
 streamlit-extras = "^0.4.7"
 pydeck = "^0.9.1"
 feast = "^0.40.1"
-redis = "^5.1.1"
+ipykernel = "^6.29.5"

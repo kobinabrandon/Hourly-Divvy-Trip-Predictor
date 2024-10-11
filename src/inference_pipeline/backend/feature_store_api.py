@@ -2,12 +2,14 @@
 The class in this module and its methods are just wrappers around the existing hopsworks
 feature store API. 
 """
-import hopsworks
+import pandas as pd 
 from pathlib import Path 
 from loguru import logger
 
 from feast import Entity, Feature, FeatureView, FileSource, Field
-from src.setup.paths import FEATURE_REPO_DATA, TIME_SERIES_DATA
+from src.setup.config import config
+from src.setup.paths import FEATURE_REPO_DATA, TIME_SERIES_DATA, INFERENCE_DATA
+
 
 def create_entity(name: str) -> Entity:
     return Entity(name=name, join_keys=[name])
@@ -23,26 +25,7 @@ def get_feature_store(path: Path) -> FileSource:
     )
 
 
-def setup_feature_group(self, name: str, version: int, description: str, for_predictions: bool) -> FeatureGroup:
-        """
-        Create or connect to a feature group with the specified name, and 
-        return an object that represents it.
-
-        Returns:
-            FeatureGroup: a representation of the fetched or created feature group
-        """
-        feature_store = self.get_feature_store()
-        feature_group = feature_store.get_or_create_feature_group(
-            name=name,
-            version=version,
-            description=description,
-            primary_key=self.primary_key,
-            event_time=f"{self.scenario}_hour" if for_predictions else self.event_time
-        )
-        return feature_group
-    
-
-def get_or_create_feature_view(scenario: str, name: str, data_path: Path) -> FeatureView:
+def get_or_create_feature_view(scenario: str, for_predictions: bool, batch_source: FileSource) -> FeatureView:
     """
     Creates or alternatively retrieves a feature view using the provided details. If a sub-query is to be used, 
     that has to be indicated, and the sub-query is to be provided. Otherwise, all features will be selected for 
@@ -54,18 +37,31 @@ def get_or_create_feature_view(scenario: str, name: str, data_path: Path) -> Fea
     Returns:
         FeatureView: the desired feature view
     """
-    data = pd.read_parquet(path=path)
+    if for_predictions:
+        data_path == INFERENCE_DATA/f"{scenario}_predictions.parquet"
+        feature_view_name = f"{scenario}_predictions"
+    else:    
+        data_path == TIME_SERIES_DATA/f"{scenario}_ts.parquet"
+        feature_view_name = f"{scenario}_feature_view"
+        
+    data: pd.DataFrame = pd.read_parquet(path=data_path)
+    columns_and_dtypes = {col: data[col].dtype for col in data.columns}
+    schema = [Field(name=col, dtype=columns_and_dtypes[col]) for col in data.columns]
 
     divvy_fs = get_feature_store()
     entity = create_entity(name=f"{self.scenario}_id")
 
-    feature_view = FeatureView(
-        name=f"{scenario}_feature_view",
-        entities=[entity]
+    return FeatureView(
+        name=feature_view_name,
+        entities=[entity],
+        ttl=0,
+        batch_source=batch_source,
+        features=schema,
+        online=False
     )
 
-    except Exception as error:
-        logger.exception(error)
-        feature_view = feature_store.get_feature_view(name=name, version=version)
-        
-    return feature_view
+
+if __name__ == "__main__":
+    for scenario in config.displayed_scenario_names.keys():
+        get_or_create_feature_view(scenario=scenario, for_predictions=True)
+        get_or_create_feature_view(scenario=scenario, for_predictions=False)

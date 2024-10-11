@@ -36,7 +36,7 @@ def make_fundamental_paths(add_feature_repo: bool = False) -> None:
     paths_to_open = [
         DATA_DIR, CLEANED_DATA, RAW_DATA_DIR, PARQUETS, GEOGRAPHICAL_DATA, TRANSFORMED_DATA, TIME_SERIES_DATA, 
         IMAGES_DIR, TRAINING_DATA, INFERENCE_DATA, MODELS_DIR, LOCAL_SAVE_DIR, COMET_SAVE_DIR, ROUNDING_INDEXER,
-        MIXED_INDEXER
+        MIXED_INDEXER, FRONTEND_DATA
     ]
  
     if add_feature_repo:
