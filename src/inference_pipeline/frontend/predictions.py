@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 from streamlit_extras.colored_header import colored_header
 
 from src.setup.config import config 
-from src.setup.paths import INFERENCE_DATA
+from src.setup.paths import FRONTEND_DATA
 from src.inference_pipeline.frontend.tracker import ProgressTracker
 from src.inference_pipeline.backend.inference import InferenceModule
 from src.inference_pipeline.frontend.data import make_geodataframes, reconcile_geodata
@@ -23,15 +23,13 @@ from src.inference_pipeline.frontend.data import make_geodataframes, reconcile_g
 
 @st.cache_data
 def retrieve_predictions(
-    model_name="xgboost",
     from_hour=config.current_hour - timedelta(hours=1),
     to_hour=config.current_hour
 ) -> pd.DataFrame:
-    """
+    """ 
     Download all the predictions for all the stations from one hour to another
 
     Args:
-        model_name: the name of the model which was trained to produce the predictions we want. Defaults to xgboost.
         from_hour (datetime, optional): From which hour we want to fetch predictions. Defaults to the previous hour.
         to_hour (datetime, optional): the hour we want predictions for. Defaults to the current hour.
 
@@ -41,12 +39,14 @@ def retrieve_predictions(
     prediction_dataframes =[]
     for scenario in config.displayed_scenario_names.keys():
         infer = InferenceModule(scenario=scenario)
+        model_name = "lightgbm" if scenario == "end" else "xgboost"
+
         predictions: pd.DataFrame = infer.load_predictions_from_store(
             model_name=model_name, 
             from_hour=from_hour, 
-            to_hour=to_hour 
+            to_hour=to_hour
         )
-
+        
         prediction_dataframes.append(predictions)
 
     start_predictions, end_predictions = prediction_dataframes[0], prediction_dataframes[1]
@@ -124,16 +124,11 @@ def restrict_geodataframe_to_stations_with_predictions(
         pd.DataFrame: geographical data for only those stations that we have predictions for
     """
     stations_we_have_predictions_for = predictions[f"{scenario}_station_name"].unique()
-
-    predictions_are_present = np.isin(
-        element=geo_dataframe[f"station_name"],
-        test_elements=stations_we_have_predictions_for
-    )
-
+    predictions_are_present = np.isin(element=geo_dataframe[f"station_name"], test_elements=stations_we_have_predictions_for)
     number_present = [boolean for boolean in predictions_are_present if boolean == True]
 
     logger.warning(
-        f"{len(geo_dataframe) - len(number_present)} stations won't be plotted due to a lack of predictied {config.displayed_scenario_names[scenario].lower()}"
+        f"{len(geo_dataframe) - len(number_present)} stations won't be plotted due to a lack of predicted {config.displayed_scenario_names[scenario].lower()}"
     )
 
     return geo_dataframe.loc[predictions_are_present, :]
@@ -158,7 +153,7 @@ def pseudocolour(
         stop_colour:a tuple representing the RGB values of the colour on the extreme right of the colour scale
 
     Returns:
-
+        tuple[float...]: 
     """
     relative_value =  float(value-min_value)/(max_value-min_value)
     return tuple(
@@ -286,6 +281,8 @@ if __name__ != "__main__":
         Here you can view a map of the city centre and its environs with many :blue[Divvy stations] littered all over 
         it. If you pan over to each station, you will be able to see the station's name (or at least, its address), and
         the number of :green[arrivals] and :orange[departures] :violet[predicted] to take place there :green[in the next hour].
+
+        This process should only take about a minute.
         """
     )
 
@@ -331,9 +328,9 @@ if __name__ != "__main__":
 
         tracker.next()
 
-    with st.spinner(text="Generating map of the Chicago area"):
+    with st.spinner(text="Generating map of the stations in the Greater Chicago"):
         make_map(_geodataframe_and_predictions=geographical_features_and_predictions)
-        geographical_features_and_predictions.to_parquet(INFERENCE_DATA/"geographical_features_and_predictions.parquet")
+        geographical_features_and_predictions.to_parquet(FRONTEND_DATA/"geographical_features_and_predictions.parquet")
         tracker.next()
 
     st.sidebar.write("✅ Map Drawn")

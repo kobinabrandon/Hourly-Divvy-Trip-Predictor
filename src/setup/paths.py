@@ -8,6 +8,8 @@ IMAGES_DIR = PARENT_DIR/"images"
 
 DATA_DIR = PARENT_DIR/"data"
 RAW_DATA_DIR = DATA_DIR/"raw"
+FRONTEND_DATA = DATA_DIR/"frontend"
+
 MODELS_DIR = PARENT_DIR/"models"
 LOCAL_SAVE_DIR = MODELS_DIR/"locally_created"
 COMET_SAVE_DIR = MODELS_DIR/"comet_downloads"

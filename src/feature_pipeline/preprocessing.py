@@ -470,7 +470,7 @@ class DataProcessor:
 
         features = pd.DataFrame()
         targets = pd.DataFrame()
-    
+
         for station_id in tqdm(
             iterable=ts_data[f"{scenario}_station_id"].unique(), 
             desc=f"Turning time series data into training data ({config.displayed_scenario_names[scenario].lower()})"
@@ -493,7 +493,6 @@ class DataProcessor:
                     hour = ts_per_station.iloc[index[1]][f"{scenario}_hour"]
                     x[i, :] = ts_per_station.iloc[index[0]: index[1]]["trips"].values
                     y[i] = ts_per_station.iloc[index[2]]["trips"]
-
                     hours.append(hour)
             
             elif not use_standard_cutoff_indexer and len(ts_per_station) == 1:
@@ -501,7 +500,7 @@ class DataProcessor:
                 y[0] = ts_per_station["trips"].iloc[0]
                 hour = ts_per_station[f"{scenario}_hour"].values[0]
                 hours.append(hour)
-            
+
             else:
                 ts_per_station = ts_per_station.reset_index(drop=True)
                 for i, index in enumerate(indices):

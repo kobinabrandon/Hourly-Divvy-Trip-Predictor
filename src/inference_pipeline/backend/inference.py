@@ -136,8 +136,10 @@ class InferenceModule:
         Returns:
             FeatureGroup: the feature group for the given model's predictions.
         """
-
-        tuned_or_not = "tuned" # the tuned XGBoost models are currently the best
+        if model_name == "lightgbm":
+            tuned_or_not = "tuned"
+        elif model_name == "xgboost":
+            tuned_or_not = "untuned"
 
         return self.api.setup_feature_group(
             description=f"predictions on {self.scenario} data using the {tuned_or_not} {model_name}",
@@ -163,7 +165,7 @@ class InferenceModule:
         # Ensure these times are datatimes
         from_hour = pd.to_datetime(from_hour, utc=True)
         to_hour = pd.to_datetime(to_hour, utc=True)
-
+            
         predictions_group = self.fetch_predictions_group(model_name=model_name)
 
         predictions_feature_view: FeatureView = self.api.get_or_create_feature_view(

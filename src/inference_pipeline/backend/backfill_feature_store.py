@@ -70,12 +70,7 @@ class BackFiller:
             write_options={"wait_for_job": True}
         )
 
-    def backfill_predictions(
-        self, 
-        target_date: datetime, 
-        model_name: str = "xgboost",
-        using_mixed_indexer: bool = True
-    ) -> None:
+    def backfill_predictions(self, target_date: datetime, using_mixed_indexer: bool = True) -> None:
         """
         Fetch the registered version of the named model, and download it. Then load a batch of features
         from the relevant feature group(whether for arrival or departure data), and make predictions on those 
@@ -85,15 +80,18 @@ class BackFiller:
         Args:
             target_date (datetime): the date up to which we want our predictions.
             
-            model_name (str, optional): the shorthand name of the model we will use. Defaults to "xgboost",
-                                        because the best performing models (for arrivals and departures) were
-                                        LGBMRegressors.
         """
         self.api.primary_key = [f"{self.scenario}_station_id"]
+       
+        # Based on the best models for arrivals & departures at the moment
+        if self.scenario == "end":
+            model_name = "lightgbm"
+            tuned_or_not = "tuned"
 
-        # The best models for arrivals & departures are currently tuned XGBRegressors
-        tuned_or_not = "tuned"
-        
+        elif self.scenario == "start":
+            model_name = "xgboost"
+            tuned_or_not = "untuned"
+
         inferrer = InferenceModule(scenario=self.scenario)
         registry = ModelRegistry(scenario=self.scenario, model_name=model_name, tuned_or_not=tuned_or_not)
         model = registry.download_latest_model(unzip=True)
