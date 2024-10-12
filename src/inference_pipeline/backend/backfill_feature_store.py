@@ -3,12 +3,13 @@ This module contains the code that is used to backfill feature and prediction
 data.
 """
 import json 
-import feast
 import subprocess
 import pandas as pd
 from loguru import logger
 from argparse import ArgumentParser
 from datetime import datetime, timedelta
+from feast import FileSource
+from feast.data_format import ParquetFormat
 
 from src.setup.config import config
 from src.setup.paths import MIXED_INDEXER, ROUNDING_INDEXER, TIME_SERIES_DATA, INFERENCE_DATA
@@ -17,7 +18,7 @@ from src.feature_pipeline.mixed_indexer import fetch_json_of_ids_and_names
 
 from src.inference_pipeline.backend.model_registry_api import ModelRegistry
 from src.inference_pipeline.backend.feature_store_api import get_or_create_feature_view
-from src.inference_pipeline.backend.inference import InferenceModule, load_raw_local_geodata
+from src.inference_pipeline.backend.inference import get_model_predictions, load_raw_local_geodata
 
 
 def backfill_features(scenario: str) -> None:
@@ -30,10 +31,10 @@ def backfill_features(scenario: str) -> None:
     Returns:
         None
     """
-    source = feast.FileSource(
-        path=TIME_SERIES_DATA/f"{scenario}s.parquet", 
+    source = FileSource(
+        path=str(TIME_SERIES_DATA/f"{scenario}s.parquet"), 
         timestamp_field=f"{scenario}_hour", 
-        file_format=feast.data_format.ParquetFormat()
+        file_format=ParquetFormat()
     )
 
     feature_view = get_or_create_feature_view(scenario=scenario, for_predictions=False, batch_source=source)
@@ -42,7 +43,7 @@ def backfill_features(scenario: str) -> None:
     subprocess.run(materialize_command)
     
     processor = DataProcessor(year=config.year, for_inference=False)
-    ts_data = processor.make_time_series()[0] if self.scenario == "start" else processor.make_time_series()[1]
+    ts_data = processor.make_time_series()[0] if scenario == "start" else processor.make_time_series()[1]
     ts_data["timestamp"] = pd.to_datetime(ts_data[f"{scenario}_hour"]).astype(int) // 10 ** 6  # Express in ms
 
     logger.info(
@@ -63,7 +64,9 @@ def backfill_predictions(scenario: str, target_date: datetime, using_mixed_index
     Args:    
         scenario: Determines whether we are looking at arrival or departure data.  Its value must be "start" or "end".
         target_date (datetime): the date up to which we want our predictions.
-        
+
+    Returns:
+        None
     """
     if scenario == "end":
         model_name = "lightgbm"
@@ -73,11 +76,10 @@ def backfill_predictions(scenario: str, target_date: datetime, using_mixed_index
         model_name = "xgboost"
         tuned_or_not = "untuned"
 
-    inferrer = InferenceModule(scenario=scenario)
     registry = ModelRegistry(scenario=scenario, model_name=model_name, tuned_or_not=tuned_or_not)
     model = registry.download_latest_model(unzip=True)
 
-    features = inferrer.fetch_time_series_and_make_features(
+    features = fetch_time_series_and_make_features(
         start_date=target_date - timedelta(days=270),
         target_date=datetime.now(),
         geocode=False
@@ -88,7 +90,7 @@ def backfill_predictions(scenario: str, target_date: datetime, using_mixed_index
     except Exception as error:
         logger.error(error)    
 
-    predictions: pd.DataFrame = inferrer.get_model_predictions(model=model, features=features)
+    predictions: pd.DataFrame = get_model_predictions(model=model, features=features)
     predictions = predictions.drop_duplicates().reset_index(drop=True)
 
     # Now to add station names to the predictions
@@ -96,22 +98,10 @@ def backfill_predictions(scenario: str, target_date: datetime, using_mixed_index
     predictions[f"{scenario}_station_name"] = predictions[f"{scenario}_station_id"].map(ids_and_names)
 
     logger.info(
-        f"There are {len(predictions[f"{self.scenario}_station_name"].unique())} stations in the predictions \
-            for {self.scenario}s"
+        f"There are {len(predictions[f"{scenario}_station_name"].unique())} stations in the predictions \
+            for {scenario}s"
     )
     
-    predictions_feature_group = self.api.setup_feature_group(
-        description=f"predicting {config.displayed_scenario_names[self.scenario]} - {tuned_or_not} {model_name}",
-        name=f"{model_name}_{self.scenario}_predictions_feature_group",
-        for_predictions=True,
-        version=6
-    )
-
-    predictions_feature_group.insert(
-        predictions,
-        write_options={"wait_for_job": True}
-    )
-
 
 if __name__ == "__main__":
 

@@ -27,7 +27,7 @@ TIME_SERIES_DATA = TRANSFORMED_DATA/"time_series"
 TRAINING_DATA = TRANSFORMED_DATA/"training_data"
 INFERENCE_DATA = TRANSFORMED_DATA/"inference"
 
-FEATURE_REPO = PARENT_DIR/"src"/"inference_pipeline"/"backend"/"feast"/"feature_repo"
+FEATURE_REPO = PARENT_DIR/"feast"
 FEATURE_REPO_DATA = FEATURE_REPO/"data"
 
 

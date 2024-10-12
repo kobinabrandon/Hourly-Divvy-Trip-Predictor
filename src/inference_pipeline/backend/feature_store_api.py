@@ -5,24 +5,25 @@ feature store API.
 import pandas as pd 
 from pathlib import Path 
 from loguru import logger
+from datetime import timedelta
 
 from feast import Entity, Feature, FeatureView, FileSource, Field
+from feast.types import Float32, Int64, String, UnixTimestamp
+from pandas.api.types import is_integer_dtype, is_float_dtype, is_string_dtype, is_datetime64_any_dtype
+
 from src.setup.config import config
 from src.setup.paths import FEATURE_REPO_DATA, TIME_SERIES_DATA, INFERENCE_DATA
 
 
-def create_entity(name: str) -> Entity:
-    return Entity(name=name, join_keys=[name])
-
-
-def get_feature_store(path: Path) -> FileSource:
-
-    return FileSource(
-        path=path, 
-        name="divvy_feature_store",
-        description="Feature store for arrivals and departures",
-        timestamp_field="timestamp"
-    )
+def convert_pandas_types(dtype: type):
+    if is_integer_dtype(dtype):
+        return Int64
+    elif is_float_dtype(dtype):
+        return Float32
+    elif is_string_dtype(dtype):
+        return String
+    elif is_datetime64_any_dtype(dtype):
+        return UnixTimestamp 
 
 
 def get_or_create_feature_view(scenario: str, for_predictions: bool, batch_source: FileSource) -> FeatureView:
@@ -38,25 +39,24 @@ def get_or_create_feature_view(scenario: str, for_predictions: bool, batch_sourc
         FeatureView: the desired feature view
     """
     if for_predictions:
-        data_path == INFERENCE_DATA/f"{scenario}_predictions.parquet"
+        data_path = INFERENCE_DATA/f"{scenario}_predictions.parquet"
         feature_view_name = f"{scenario}_predictions"
     else:    
-        data_path == TIME_SERIES_DATA/f"{scenario}_ts.parquet"
+        data_path = TIME_SERIES_DATA/f"{scenario}_ts.parquet"
         feature_view_name = f"{scenario}_feature_view"
         
     data: pd.DataFrame = pd.read_parquet(path=data_path)
-    columns_and_dtypes = {col: data[col].dtype for col in data.columns}
-    schema = [Field(name=col, dtype=columns_and_dtypes[col]) for col in data.columns]
+    columns_and_dtypes = {col: convert_pandas_types(data[col].dtype) for col in data.columns}
 
-    divvy_fs = get_feature_store()
-    entity = create_entity(name=f"{self.scenario}_id")
+    schema = [Field(name=col, dtype=columns_and_dtypes[col]) for col in data.columns]
+    entity = Entity(name=f"{scenario}_id", join_keys=[f"{scenario}_id"])
 
     return FeatureView(
         name=feature_view_name,
         entities=[entity],
-        ttl=0,
-        batch_source=batch_source,
-        features=schema,
+        schema=schema,
+        ttl=timedelta(days=0),
+        source=batch_source,
         online=False
     )
 

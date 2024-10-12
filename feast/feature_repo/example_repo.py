@@ -27,7 +27,7 @@ driver = Entity(name="driver", join_keys=["driver_id"])
 # for more info.
 driver_stats_source = FileSource(
     name="driver_hourly_stats_source",
-    path="/home/kobina/ml/projects/hourly-divvy-trip-predictor/src/inference_pipeline/backend/feast/feature_repo/data/driver_stats.parquet",
+    path="/home/kobina/ml/projects/hourly-divvy-trip-predictor/feast/feature_repo/data/driver_stats.parquet",
     timestamp_field="event_timestamp",
     created_timestamp_column="created",
 )
@@ -91,7 +91,7 @@ driver_activity_v1 = FeatureService(
         transformed_conv_rate,  # Selects all features from the feature view
     ],
     logging_config=LoggingConfig(
-        destination=FileLoggingDestination(path="/home/kobina/ml/projects/hourly-divvy-trip-predictor/src/inference_pipeline/backend/feast/feature_repo/data")
+        destination=FileLoggingDestination(path="/home/kobina/ml/projects/hourly-divvy-trip-predictor/feast/feature_repo/data")
     ),
 )
 driver_activity_v2 = FeatureService(

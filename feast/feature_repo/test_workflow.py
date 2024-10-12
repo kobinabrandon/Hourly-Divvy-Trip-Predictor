@@ -5,7 +5,6 @@ import pandas as pd
 
 from feast import FeatureStore
 from feast.data_source import PushMode
-from src.setup.paths import FEATURE_REPO
 
 
 def run_demo():

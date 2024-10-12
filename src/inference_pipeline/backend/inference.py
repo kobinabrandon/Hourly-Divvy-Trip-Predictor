@@ -16,198 +16,128 @@ from loguru import logger
 from argparse import ArgumentParser
 
 from datetime import datetime, timedelta
-from hsfs.feature_group import FeatureGroup
-from hsfs.feature_view import FeatureView
-
 from sklearn.pipeline import Pipeline
 
 from src.setup.config import FeatureGroupConfig, config
 from src.setup.paths import ROUNDING_INDEXER, MIXED_INDEXER
-
 from src.feature_pipeline.preprocessing import DataProcessor
 from src.feature_pipeline.feature_engineering import finish_feature_engineering
-from src.inference_pipeline.backend.feature_store_api import FeatureStoreAPI
+from src.inference_pipeline.backend.feature_store_api import get_or_create_feature_view
 from src.inference_pipeline.backend.model_registry_api import ModelRegistry
 
 
-class InferenceModule:
-    def __init__(self, scenario: str) -> None:
-        self.scenario = scenario
-        self.n_features = config.n_features          
+def fetch_time_series_and_make_features(scenario: str, start_date: datetime, target_date: datetime, geocode: bool) -> pd.DataFrame:
+    """
+    Queries the offline feature store for time series data within a certain timeframe, and creates features
+    features from that data. We then apply feature engineering so that the data aligns with the features from
+    the original training data.
 
-        self.api = FeatureStoreAPI(
-            scenario=self.scenario,
-            event_time="timestamp",
-            api_key=config.hopsworks_api_key,
-            project_name=config.hopsworks_project_name,
-            primary_key=[f"{self.scenario}_station_id", f"{self.scenario}_hour"],
-        )
+    My initial intent was to fetch time series data the 28 days prior to the target date. However, the class
+    method that I am using to convert said data into features requires a larger dataset to work (see the while 
+    loop in the get_cutoff_indices method from the preprocessing module). So after some experimentation, I 
+    decided to go with 168 days of prior time series data. I will look to play around this number in the future.
 
-        self.feature_group_metadata = FeatureGroupConfig(
-            name=f"{scenario}_feature_group",
-            version=config.feature_group_version,
-            primary_key=self.api.primary_key,
-            event_time=self.api.event_time
-        )
+    Args:
+        target_date: the date for which we seek predictions.
+        geocode: whether to implement geocoding during feature engineering
+        for_plotting (bool): whether we are producing these features purely for the purpose of plotting historical data.
 
-        self.feature_group: FeatureGroup = self.api.setup_feature_group(
-            description=f"Hourly time series data showing when trips {self.scenario}s",
-            version=self.feature_group_metadata.version,
-            name=self.feature_group_metadata.name,
-            for_predictions=False
-        )
+    Returns:
+        pd.DataFrame: time series data 
+    """ 
+    feature_view: FeatureView = get_or_create_feature_view(scenario=scenario, for_predictions=False)
 
-    def fetch_time_series_and_make_features(self, start_date: datetime, target_date: datetime, geocode: bool) -> pd.DataFrame:
-        """
-        Queries the offline feature store for time series data within a certain timeframe, and creates features
-        features from that data. We then apply feature engineering so that the data aligns with the features from
-        the original training data.
+    logger.warning("Fetching time series data from the offline feature store...")
+    ts_data: pd.DataFrame = feature_view.get_batch_data(
+        start_time=start_date, 
+        end_time=target_date,
+        read_options={"use_hive": True}
+    )
 
-        My initial intent was to fetch time series data the 28 days prior to the target date. However, the class
-        method that I am using to convert said data into features requires a larger dataset to work (see the while 
-        loop in the get_cutoff_indices method from the preprocessing module). So after some experimentation, I 
-        decided to go with 168 days of prior time series data. I will look to play around this number in the future.
+    ts_data = ts_data.sort_values(
+        by=[f"{scenario}_station_id", f"{scenario}_hour"]
+    )
 
-        Args:
-            target_date: the date for which we seek predictions.
-            geocode: whether to implement geocoding during feature engineering
-            for_plotting (bool): whether we are producing these features purely for the purpose of plotting historical data.
+    station_ids = ts_data[f"{scenario}_station_id"].unique()
+    features = make_features(station_ids=station_ids, ts_data=ts_data, geocode=geocode)
 
-        Returns:
-            pd.DataFrame: time series data 
-        """ 
-        feature_view: FeatureView = self.api.get_or_create_feature_view(
-            name=f"{self.scenario}_feature_view",
-            feature_group=self.feature_group,
-            version=1   
-        )
+    features[f"{scenario}_hour"] = target_date
+    features = features.sort_values(by=[f"{self.scenario}_station_id"])
 
-        logger.warning("Fetching time series data from the offline feature store...")
-        ts_data: pd.DataFrame = feature_view.get_batch_data(
-            start_time=start_date, 
-            end_time=target_date,
-            read_options={"use_hive": True}
-        )
-
-        ts_data = ts_data.sort_values(
-            by=[f"{self.scenario}_station_id", f"{self.scenario}_hour"]
-        )
-
-        station_ids = ts_data[f"{self.scenario}_station_id"].unique()
-        features = self.make_features(station_ids=station_ids, ts_data=ts_data, geocode=geocode)
-
-        features[f"{self.scenario}_hour"] = target_date
-        features = features.sort_values(by=[f"{self.scenario}_station_id"])
-
-        return features
+    return features
 
 
-    def make_features(self, station_ids: list[int], ts_data: pd.DataFrame, geocode: bool) -> pd.DataFrame:
-        """
-        Restructure the time series data into features in a way that aligns with the features 
-        of the original training data.
+def make_features(station_ids: list[int], ts_data: pd.DataFrame, geocode: bool) -> pd.DataFrame:
+    """
+    Restructure the time series data into features in a way that aligns with the features 
+    of the original training data.
 
-        Args:
-            station_ids: the list of unique station IDs.
-            ts_data: the time series data that is store on the feature store.
+    Args:
+        station_ids: the list of unique station IDs.
+        ts_data: the time series data that is store on the feature store.
 
-        Returns:
-            pd.DataFrame: time series data
-        """
-        processor = DataProcessor(year=config.year, for_inference=True)
+    Returns:
+        pd.DataFrame: time series data
+    """
+    processor = DataProcessor(year=config.year, for_inference=True)
 
-        # Perform transformation of the time series data with feature engineering
-        return processor.transform_ts_into_training_data(
-            ts_data=ts_data,
-            geocode=geocode,
-            scenario=self.scenario, 
-            input_seq_len=config.n_features,
-            step_size=24
-        )
-
-
-    def fetch_predictions_group(self, model_name: str) -> FeatureGroup:
-        """
-        Return the feature group used for predictions.
-
-        Args:
-            model_name (str): the name of the model
-
-        Returns:
-            FeatureGroup: the feature group for the given model's predictions.
-        """
-        if model_name == "lightgbm":
-            tuned_or_not = "tuned"
-        elif model_name == "xgboost":
-            tuned_or_not = "untuned"
-
-        return self.api.setup_feature_group(
-            description=f"predictions on {self.scenario} data using the {tuned_or_not} {model_name}",
-            name=f"{model_name}_{self.scenario}_predictions_feature_group",
-            version=config.feature_group_version,
-            for_predictions=True
-        )
+    # Perform transformation of the time series data with feature engineering
+    return processor.transform_ts_into_training_data(
+        ts_data=ts_data,
+        geocode=geocode,
+        scenario=scenario, 
+        input_seq_len=config.n_features,
+        step_size=24
+    )
 
 
-    def load_predictions_from_store(self, from_hour: datetime, to_hour: datetime, model_name: str) -> pd.DataFrame:
-        """
-        Load a dataframe containing predictions from their dedicated feature group on the offline feature store.
-        This dataframe will contain predicted values between the specified hours. 
+def load_predictions_from_store(scenario: str, from_hour: datetime, to_hour: datetime, model_name: str) -> pd.DataFrame:
+    """
+    Load a dataframe containing predictions from their dedicated feature group on the offline feature store.
+    This dataframe will contain predicted values between the specified hours. 
 
-        Args:
-            model_name: the model's name is part of the name of the feature view to be queried
-            from_hour: the first hour for which we want the predictions
-            to_hour: the last hour for would like to receive predictions.
+    Args:
+        model_name: the model's name is part of the name of the feature view to be queried
+        from_hour: the first hour for which we want the predictions
+        to_hour: the last hour for would like to receive predictions.
 
-        Returns:
-            pd.DataFrame: the dataframe containing predictions.
-        """
-        # Ensure these times are datatimes
-        from_hour = pd.to_datetime(from_hour, utc=True)
-        to_hour = pd.to_datetime(to_hour, utc=True)
-            
-        predictions_group = self.fetch_predictions_group(model_name=model_name)
+    Returns:
+        pd.DataFrame: the dataframe containing predictions.
+    """
+    # Ensure these times are datatimes
+    from_hour = pd.to_datetime(from_hour, utc=True)
+    to_hour = pd.to_datetime(to_hour, utc=True)
+    predictions_feature_view: FeatureView = get_or_create_feature_view(scenario=scenario, for_predictions=True)
 
-        predictions_feature_view: FeatureView = self.api.get_or_create_feature_view(
-            name=f"{model_name}_{self.scenario}_predictions",
-            feature_group=predictions_group,
-            version=1
-        )
+    logger.info(
+        f"Fetching predicted {config.displayed_scenario_names[scenario].lower()} between {from_hour.hour}:00 and {to_hour.hour}:00"
+    )
 
-        logger.info(
-            f"Fetching predicted {config.displayed_scenario_names[self.scenario].lower()} between {from_hour.hour}:00 and {to_hour.hour}:00"
-        )
+    predictions_df[f"{scenario}_hour"] = pd.to_datetime(predictions_df[f"{scenario}_hour"], utc=True)
 
-        predictions_df = predictions_feature_view.get_batch_data(
-            start_time=from_hour - timedelta(days=1), 
-            end_time=to_hour + timedelta(days=1)
-        )
+    return predictions_df.sort_values(
+        by=[f"{scenario}_hour", f"{scenario}_station_id"]
+    )
 
-        predictions_df[f"{self.scenario}_hour"] = pd.to_datetime(predictions_df[f"{self.scenario}_hour"], utc=True)
+def get_model_predictions(scenario: str, model: Pipeline, features: pd.DataFrame) -> pd.DataFrame:
+    """
+    Simply use the model's predict method to provide predictions based on the supplied features
 
-        return predictions_df.sort_values(
-            by=[f"{self.scenario}_hour", f"{self.scenario}_station_id"]
-        )
+    Args:
+        model: the model object fetched from the model registry
+        features: the features obtained from the feature store
 
-    def get_model_predictions(self, model: Pipeline, features: pd.DataFrame) -> pd.DataFrame:
-        """
-        Simply use the model's predict method to provide predictions based on the supplied features
+    Returns:
+        pd.DataFrame: the model's predictions
+    """
+    predictions = model.predict(features)
+    prediction_per_station = pd.DataFrame()
 
-        Args:
-            model: the model object fetched from the model registry
-            features: the features obtained from the feature store
-
-        Returns:
-            pd.DataFrame: the model's predictions
-        """
-        predictions = model.predict(features)
-        prediction_per_station = pd.DataFrame()
-
-        prediction_per_station[f"{self.scenario}_station_id"] = features[f"{self.scenario}_station_id"].values
-        prediction_per_station[f"{self.scenario}_hour"] = pd.to_datetime(datetime.utcnow()).floor("H")
-        prediction_per_station[f"predicted_{self.scenario}s"] = predictions.round(decimals=0)
-        
-        return prediction_per_station
+    prediction_per_station[f"{scenario}_station_id"] = features[f"{scenario}_station_id"].values
+    prediction_per_station[f"{scenario}_hour"] = pd.to_datetime(datetime.utcnow()).floor("H")
+    prediction_per_station[f"predicted_{scenario}s"] = predictions.round(decimals=0)
+    
+    return prediction_per_station
 
 
 def rerun_feature_pipeline():
