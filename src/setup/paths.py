@@ -1,4 +1,5 @@
 import os 
+import shutil
 import subprocess
 from pathlib import Path 
 
@@ -27,28 +28,24 @@ TIME_SERIES_DATA = TRANSFORMED_DATA/"time_series"
 TRAINING_DATA = TRANSFORMED_DATA/"training_data"
 INFERENCE_DATA = TRANSFORMED_DATA/"inference"
 
-FEATURE_REPO = PARENT_DIR/"feast"
+FEATURE_REPO = PARENT_DIR/"feature_store"/"feature_repo"
 FEATURE_REPO_DATA = FEATURE_REPO/"data"
 
 
 def make_fundamental_paths(add_feature_repo: bool = False) -> None:
 
-    paths_to_open = [
+    paths_to_create = [
         DATA_DIR, CLEANED_DATA, RAW_DATA_DIR, PARQUETS, GEOGRAPHICAL_DATA, TRANSFORMED_DATA, TIME_SERIES_DATA, 
         IMAGES_DIR, TRAINING_DATA, INFERENCE_DATA, MODELS_DIR, LOCAL_SAVE_DIR, COMET_SAVE_DIR, ROUNDING_INDEXER,
-        MIXED_INDEXER, FRONTEND_DATA
+        MIXED_INDEXER, FRONTEND_DATA, FEATURE_REPO
     ]
  
-    if add_feature_repo:
-        os.system(command="feast init feast")
-        paths_to_open.extend([FEATURE_REPO, FEATURE_REPO_DATA])
+    if add_feature_repo and not Path(FEATURE_REPO).exists():
+        os.system(command="feast init feature_store")
+        shutil.move(src=FEATURE_REPO/"feature_store.yaml", dst=PARENT_DIR/"feature_store.yaml")
+        paths_to_create.append(FEATURE_REPO_DATA)
+         
 
-    for path in paths_to_open: 
+    for path in paths_to_create: 
         if not Path(path).exists():
             os.mkdir(path)
-
-
-if __name__ == "__main__":
-    os.chdir(PARENT_DIR)
-    print(PARENT_DIR)
-    

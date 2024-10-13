@@ -18,7 +18,7 @@ from argparse import ArgumentParser
 from datetime import datetime, timedelta
 from sklearn.pipeline import Pipeline
 
-from src.setup.config import FeatureGroupConfig, config
+from src.setup.config import config
 from src.setup.paths import ROUNDING_INDEXER, MIXED_INDEXER
 from src.feature_pipeline.preprocessing import DataProcessor
 from src.feature_pipeline.feature_engineering import finish_feature_engineering
@@ -46,8 +46,8 @@ def fetch_time_series_and_make_features(scenario: str, start_date: datetime, tar
         pd.DataFrame: time series data 
     """ 
     feature_view: FeatureView = get_or_create_feature_view(scenario=scenario, for_predictions=False)
-
     logger.warning("Fetching time series data from the offline feature store...")
+    
     ts_data: pd.DataFrame = feature_view.get_batch_data(
         start_time=start_date, 
         end_time=target_date,

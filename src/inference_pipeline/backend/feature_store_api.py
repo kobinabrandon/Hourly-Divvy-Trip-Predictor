@@ -2,6 +2,7 @@
 The class in this module and its methods are just wrappers around the existing hopsworks
 feature store API. 
 """
+import subprocess
 import pandas as pd 
 from pathlib import Path 
 from loguru import logger
@@ -43,22 +44,25 @@ def get_or_create_feature_view(scenario: str, for_predictions: bool, batch_sourc
         feature_view_name = f"{scenario}_predictions"
     else:    
         data_path = TIME_SERIES_DATA/f"{scenario}_ts.parquet"
-        feature_view_name = f"{scenario}_feature_view"
+        feature_view_name = f"{scenario}_features"
         
     data: pd.DataFrame = pd.read_parquet(path=data_path)
     columns_and_dtypes = {col: convert_pandas_types(data[col].dtype) for col in data.columns}
 
     schema = [Field(name=col, dtype=columns_and_dtypes[col]) for col in data.columns]
-    entity = Entity(name=f"{scenario}_id", join_keys=[f"{scenario}_id"])
+    entity = Entity(name=f"{scenario}_station_id", join_keys=[f"{scenario}_station_id"])
 
-    return FeatureView(
+    feature_view = FeatureView(
         name=feature_view_name,
         entities=[entity],
         schema=schema,
         ttl=timedelta(days=0),
         source=batch_source,
-        online=False
+        online=True
     )
+
+    subprocess.run(["feast", "apply"])
+    return feature_view
 
 
 if __name__ == "__main__":

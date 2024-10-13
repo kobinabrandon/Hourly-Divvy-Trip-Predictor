@@ -8,17 +8,17 @@ import pandas as pd
 from loguru import logger
 from argparse import ArgumentParser
 from datetime import datetime, timedelta
-from feast import FileSource
 from feast.data_format import ParquetFormat
+from feast import FileSource, FeatureStore
 
 from src.setup.config import config
-from src.setup.paths import MIXED_INDEXER, ROUNDING_INDEXER, TIME_SERIES_DATA, INFERENCE_DATA
 from src.feature_pipeline.preprocessing import DataProcessor
 from src.feature_pipeline.mixed_indexer import fetch_json_of_ids_and_names
-
 from src.inference_pipeline.backend.model_registry_api import ModelRegistry
 from src.inference_pipeline.backend.feature_store_api import get_or_create_feature_view
 from src.inference_pipeline.backend.inference import get_model_predictions, load_raw_local_geodata
+
+from src.setup.paths import MIXED_INDEXER, ROUNDING_INDEXER, TIME_SERIES_DATA, INFERENCE_DATA, FEATURE_REPO
 
 
 def backfill_features(scenario: str) -> None:
@@ -31,9 +31,13 @@ def backfill_features(scenario: str) -> None:
     Returns:
         None
     """
+    processor = DataProcessor(year=config.year, for_inference=False)
+    ts_data = processor.make_time_series()[0] if scenario == "start" else processor.make_time_series()[1]
+    ts_data["timestamp"] = pd.to_datetime(ts_data[f"{scenario}_hour"]).astype(int) // 10 ** 6  # Express in ms
+    
     source = FileSource(
         path=str(TIME_SERIES_DATA/f"{scenario}s.parquet"), 
-        timestamp_field=f"{scenario}_hour", 
+        event_timestamp_column=f"{scenario}_hour", 
         file_format=ParquetFormat()
     )
 
@@ -41,17 +45,16 @@ def backfill_features(scenario: str) -> None:
 
     materialize_command = ["feast", "materialize-incremental", f"$(date {config.current_hour})"]
     subprocess.run(materialize_command)
-    
-    processor = DataProcessor(year=config.year, for_inference=False)
-    ts_data = processor.make_time_series()[0] if scenario == "start" else processor.make_time_series()[1]
-    ts_data["timestamp"] = pd.to_datetime(ts_data[f"{scenario}_hour"]).astype(int) // 10 ** 6  # Express in ms
 
     logger.info(
-        f"There are {len(ts_data[f"{self.scenario}_station_id"].unique())} stations in the time series data for\
-            {config.displayed_scenario_names[self.scenario].lower()}"
+        f"There are {len(ts_data[f"{scenario}_station_id"].unique())} stations in the time series data for\
+            {config.displayed_scenario_names[scenario].lower()}"
     )
 
-    description=f"Hourly time series data for {config.displayed_scenario_names[self.scenario].lower()}"
+    store = FeatureStore(repo_path=FEATURE_REPO)
+    store.write_to_online_store(feature_view_name=feature_view.name, allow_registry_cache=True, df=ts_data)
+
+    description=f"Hourly time series data for {config.displayed_scenario_names[scenario].lower()}"
 
 
 def backfill_predictions(scenario: str, target_date: datetime, using_mixed_indexer: bool = True) -> None:
@@ -62,7 +65,7 @@ def backfill_predictions(scenario: str, target_date: datetime, using_mixed_index
     predictions. 
 
     Args:    
-        scenario: Determines whether we are looking at arrival or departure data.  Its value must be "start" or "end".
+        scenario: Determines whether we are looking at arrival or departure data. Its value must be "start" or "end".
         target_date (datetime): the date up to which we want our predictions.
 
     Returns:
