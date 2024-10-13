@@ -11,6 +11,7 @@ keyfile
 /data/raw
 /data/transformed
 /data/geographical/rounding_indexer
+/feature_store/feature_repo/data
 
 /BACKUP
 /models

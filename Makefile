@@ -22,10 +22,10 @@ train-all: train-starts-untuned train-ends-untuned train-starts-tuned train-ends
 
 # Backfilling the Feature Store
 backfill-features:
-	poetry run python src/inference_pipeline/backend/backfill_feature_store.py --scenarios start end --target features 
+	poetry run python feature_store/feature_repo/backfill_feature_store.py --scenarios start end --target features 
 	
 backfill-predictions:
-	poetry run python src/inference_pipeline/backend/backfill_feature_store.py --scenarios start end --target predictions
+	poetry run python feature_store/feature_repo/backfill_feature_store.py --scenarios start end --target predictions
 	
 backfill-all: backfill-features backfill-predictions	
 

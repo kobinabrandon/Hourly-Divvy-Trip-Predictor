@@ -1,10 +1,5 @@
-"""
-This module contains the code that is used to backfill feature and prediction 
-data.
-"""
 import os
 import json 
-import subprocess
 import pandas as pd
 from loguru import logger
 from argparse import ArgumentParser
@@ -17,7 +12,12 @@ from src.feature_pipeline.preprocessing import DataProcessor
 from src.feature_pipeline.mixed_indexer import fetch_json_of_ids_and_names
 from src.inference_pipeline.backend.model_registry_api import ModelRegistry
 from src.inference_pipeline.backend.feature_store_api import get_or_create_feature_view
-from src.inference_pipeline.backend.inference import get_model_predictions, load_raw_local_geodata
+
+from src.inference_pipeline.backend.inference import (
+    get_model_predictions, 
+    load_raw_local_geodata, 
+    fetch_time_series_and_make_features
+)
 
 from src.setup.paths import MIXED_INDEXER, ROUNDING_INDEXER, TIME_SERIES_DATA, INFERENCE_DATA, FEATURE_REPO
 
@@ -36,23 +36,7 @@ def backfill_features(scenario: str) -> None:
     ts_data = processor.make_time_series()[0] if scenario == "start" else processor.make_time_series()[1]
     ts_data["timestamp"] = pd.to_datetime(ts_data[f"{scenario}_hour"]).astype(int) // 10 ** 6  # Express in ms
     
-    source = FileSource(
-        path=str(TIME_SERIES_DATA/f"{scenario}_ts.parquet"), 
-        description=f"Hourly time series data for {config.displayed_scenario_names[scenario].lower()}",
-        event_timestamp_column=f"{scenario}_hour", 
-        file_format=ParquetFormat()
-    )
-
-    feature_view = get_or_create_feature_view(scenario=scenario, for_predictions=False, batch_source=source)
-
-    today = datetime.now().strftime("%Y-%m-%d")
-    store = FeatureStore(repo_path=FEATURE_REPO, fs_yaml_file=FEATURE_REPO/"feature_store.yaml")
-    store.apply([source, feature_view])    
-    
-    materialize_command = f"feast materialize-incremental {today}"
-    os.system(command=materialize_command)
-
-    store.write_to_online_store(feature_view_name=feature_view.name, allow_registry_cache=True, df=ts_data)
+    get_and_push_data(scenario=scenario, for_predictions=False, data=ts_data)
 
 
 def backfill_predictions(scenario: str, target_date: datetime, using_mixed_indexer: bool = True) -> None:
@@ -79,12 +63,9 @@ def backfill_predictions(scenario: str, target_date: datetime, using_mixed_index
 
     registry = ModelRegistry(scenario=scenario, model_name=model_name, tuned_or_not=tuned_or_not)
     model = registry.download_latest_model(unzip=True)
+    
 
-    features = fetch_time_series_and_make_features(
-        start_date=target_date - timedelta(days=270),
-        target_date=datetime.now(),
-        geocode=False
-    )
+    start_date=target_date - timedelta(days=270),
     
     try:
         features = features.drop(["trips_next_hour", f"{scenario}_hour"], axis=1)
@@ -98,11 +79,34 @@ def backfill_predictions(scenario: str, target_date: datetime, using_mixed_index
     ids_and_names = fetch_json_of_ids_and_names(scenario=scenario, using_mixed_indexer=True, invert=False)
     predictions[f"{scenario}_station_name"] = predictions[f"{scenario}_station_id"].map(ids_and_names)
 
-    logger.info(
-        f"There are {len(predictions[f"{scenario}_station_name"].unique())} stations in the predictions \
-            for {scenario}s"
-    )
+    get_and_push_data(scenario=scenario, for_predictions=True, data=predictions)
     
+
+def get_and_push_data(scenario: str, for_predictions: bool, data: pd.DataFrame) -> None:
+
+    if for_predictions:
+        data_path = INFERENCE_DATA/f"predicted_{scenario}s.parquet"
+        description = f"Hourly predictions for {config.displayed_scenario_names[scenario].lower()}"
+    else:
+        data_path = TIME_SERIES_DATA/f"{scenario}_ts.parquet"
+        description = f"Hourly time series data for {config.displayed_scenario_names[scenario].lower()}"
+
+    source = FileSource(path=str(data_path), file_format=ParquetFormat(), description=description)
+    store = FeatureStore(repo_path=FEATURE_REPO, fs_yaml_file=FEATURE_REPO/"feature_store.yaml")
+        
+    if for_predictions:
+        feature_view = store.get_feature_view()
+    else:
+        feature_view = get_or_create_feature_view(scenario=scenario, for_predictions=for_predictions, file_source=source)
+
+        today = datetime.now().strftime("%Y-%m-%d")
+        store.apply([source, feature_view])    
+        
+        materialize_command = f"feast materialize-incremental {today}"
+        os.system(command=materialize_command)
+
+        store.write_to_online_store(feature_view_name=feature_view.name, allow_registry_cache=True, df=data)
+
 
 if __name__ == "__main__":
 

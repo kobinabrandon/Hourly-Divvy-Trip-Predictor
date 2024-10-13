@@ -15,18 +15,25 @@ from pathlib import Path
 from loguru import logger
 from argparse import ArgumentParser
 
-from datetime import datetime, timedelta
 from sklearn.pipeline import Pipeline
+from datetime import datetime, timedelta
+from feast import FileSource, FeatureStore
 
 from src.setup.config import config
-from src.setup.paths import ROUNDING_INDEXER, MIXED_INDEXER
+from src.setup.paths import ROUNDING_INDEXER, MIXED_INDEXER, FEATURE_REPO
 from src.feature_pipeline.preprocessing import DataProcessor
 from src.feature_pipeline.feature_engineering import finish_feature_engineering
 from src.inference_pipeline.backend.feature_store_api import get_or_create_feature_view
 from src.inference_pipeline.backend.model_registry_api import ModelRegistry
 
 
-def fetch_time_series_and_make_features(scenario: str, start_date: datetime, target_date: datetime, geocode: bool) -> pd.DataFrame:
+def fetch_time_series_and_make_features(
+    scenario: str, 
+    start_date: datetime, 
+    target_date: datetime, 
+    file_source: FileSource,
+    geocode: bool
+    ) -> pd.DataFrame:
     """
     Queries the offline feature store for time series data within a certain timeframe, and creates features
     features from that data. We then apply feature engineering so that the data aligns with the features from
@@ -45,14 +52,9 @@ def fetch_time_series_and_make_features(scenario: str, start_date: datetime, tar
     Returns:
         pd.DataFrame: time series data 
     """ 
-    feature_view: FeatureView = get_or_create_feature_view(scenario=scenario, for_predictions=False)
-    logger.warning("Fetching time series data from the offline feature store...")
+    store = FeatureStore(repo_path=FEATURE_REPO, fs_yaml_file=FEATURE_REPO/"feature_store.yaml")
+    feature_view = get_or_create_feature_view(scenario=scenario, for_predictions=True, file_source=file_source)
     
-    ts_data: pd.DataFrame = feature_view.get_batch_data(
-        start_time=start_date, 
-        end_time=target_date,
-        read_options={"use_hive": True}
-    )
 
     ts_data = ts_data.sort_values(
         by=[f"{scenario}_station_id", f"{scenario}_hour"]
