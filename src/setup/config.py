@@ -23,11 +23,11 @@ class GeneralConfig(BaseSettings):
     comet_workspace: str
     comet_project_name: str
 
-    # Hopsworks
-    hopsworks_api_key: str
-    hopsworks_project_name: str
-    feature_group_version: int = 6
-    feature_view_version: int = 1
+    # Azure
+    feature_store_name: str
+    feature_store_loction: str
+    feature_store_resource_group: str
+    feature_store_subscription_id: str
 
     backfill_days: int = 30
     current_hour: datetime = pd.to_datetime(datetime.now(tz=UTC)).floor("H")

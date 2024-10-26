@@ -5,23 +5,27 @@ feature store API.
 import hopsworks
 from loguru import logger
 
-from hsfs.feature_view import FeatureView
-from hsfs.feature_store import FeatureStore
-from hsfs.feature_group import FeatureGroup
-from hsfs.constructor.query import Query
+from azure.ai.ml import MLClient
+from azureml.featurestore import FeatureStoreClient
+from azure.ai.ml.identity import AzureMLOnBehalfOfCredential
+from azure.ai.ml.entities import FeatureStore, FeatureStoreEntity, FeatureSet
+from azure.identity import DefaultAzureCredential
+
+from azureml.featurestore.feature_source.parquet_feature_source import ParquetFeatureSource
 
 from src.setup.config import config
 
 
-def get_feature_store() -> FeatureStore:
-    """
-    Login to Hopsworks and return a pointer to the feature store
+def create_feature_store():
 
-    Returns:
-        FeatureStore: pointer to the feature store
-    """
-    project = hopsworks.login(project=config.hopsworks_project_name, api_key_value=config.hopsworks_api_key)
-    return project.get_feature_store()
+    ml_client = MLClient(
+        credential=DefaultAzureCredential(),
+        subscription_id=config.feature_store_subscription_id, 
+        resource_group_name=config.feature_store_resource_group
+    )
+
+    fs = FeatureStore(name=config.feature_store_name, location=config.feature_store_loction)
+    ml_client.feature_stores.begin_create(feature_store=fs)
 
 
 def setup_feature_group(
