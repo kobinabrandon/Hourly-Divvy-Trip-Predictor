@@ -6,22 +6,22 @@ from loguru import logger
 from datetime import timedelta
 
 from feast import Entity, Feature, FeatureView, FileSource, Field
-from feast.types import Float32, Int64, String, UnixTimestamp
+from feast.types import Float32, Int64, String, UnixTimestamp, ValueType
 from pandas.api.types import is_integer_dtype, is_float_dtype, is_string_dtype, is_datetime64_any_dtype
 
 from src.setup.config import config
 from src.setup.paths import FEATURE_REPO_DATA, TIME_SERIES_DATA, INFERENCE_DATA, FEATURE_REPO
 
 
-def convert_pandas_types(dtype: type):
+def convert_pandas_types(for_schema: bool, dtype: type):
     if is_integer_dtype(dtype):
-        return Int64
+        return Int64 if for_schema else ValueType.INT64
     elif is_float_dtype(dtype):
-        return Float32
+        return Float32 if for_schema else ValueType.FLOAT
     elif is_string_dtype(dtype):
-        return String
+        return String if for_schema else ValueType.STRING
     elif is_datetime64_any_dtype(dtype):
-        return UnixTimestamp 
+        return UnixTimestamp if for_schema else ValueType.UNIX_TIMESTAMP
 
 
 def get_or_create_feature_view(scenario: str, for_predictions: bool, file_source: FileSource) -> FeatureView:
@@ -44,10 +44,16 @@ def get_or_create_feature_view(scenario: str, for_predictions: bool, file_source
         feature_view_name = f"{scenario}_ts"
         
     data: pd.DataFrame = pd.read_parquet(path=data_path)
-    columns_and_dtypes = {column: convert_pandas_types(dtype=data[column].dtype) for column in data.columns}
 
-    schema = [Field(name=column, dtype=columns_and_dtypes[column]) for column in data.columns]
-    feature_view = FeatureView(name=feature_view_name, schema=schema, source=file_source, online=True)
+    entities = [
+        Entity(
+            name=col, 
+            value_type=convert_pandas_types(for_schema=False, dtype=data[col].dtype)
+        ) for col in data.columns
+    ]
+
+    schema = [Field(name=column, dtype=convert_pandas_types(for_schema=True, dtype=data[column].dtype)) for column in data.columns]
+    feature_view = FeatureView(name=feature_view_name, schema=schema, source=file_source, online=True, entities=entities)
 
     os.chdir(path=FEATURE_REPO)
     os.system(command="feast apply")

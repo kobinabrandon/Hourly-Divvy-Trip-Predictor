@@ -23,12 +23,6 @@ class GeneralConfig(BaseSettings):
     comet_workspace: str
     comet_project_name: str
 
-    # Hopsworks
-    hopsworks_api_key: str
-    hopsworks_project_name: str
-    feature_group_version: int = 6
-    feature_view_version: int = 1
-
     current_hour: datetime = pd.to_datetime(datetime.now(tz=UTC)).floor("H")
     displayed_scenario_names: dict = {"start": "Departures", "end": "Arrivals"} 
 

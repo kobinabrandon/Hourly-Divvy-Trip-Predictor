@@ -35,7 +35,8 @@ def backfill_features(scenario: str) -> None:
     processor = DataProcessor(year=config.year, for_inference=False)
     ts_data = processor.make_time_series()[0] if scenario == "start" else processor.make_time_series()[1]
     ts_data["timestamp"] = pd.to_datetime(ts_data[f"{scenario}_hour"]).astype(int) // 10 ** 6  # Express in ms
-    
+
+
     get_and_push_data(scenario=scenario, for_predictions=False, data=ts_data)
 
 
