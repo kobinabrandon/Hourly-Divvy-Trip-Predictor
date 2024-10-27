@@ -45,19 +45,12 @@ def get_or_create_feature_view(scenario: str, for_predictions: bool, file_source
         
     data: pd.DataFrame = pd.read_parquet(path=data_path)
 
-    entities = [
-        Entity(
-            name=col, 
-            value_type=convert_pandas_types(for_schema=False, dtype=data[col].dtype)
-        ) for col in data.columns
-    ]
-
+    station_ids = Entity(name=f"{scenario}_station_id", join_keys=[f"{scenario}_station_id"])
     schema = [Field(name=column, dtype=convert_pandas_types(for_schema=True, dtype=data[column].dtype)) for column in data.columns]
-    feature_view = FeatureView(name=feature_view_name, schema=schema, source=file_source, online=True, entities=entities)
 
-    os.chdir(path=FEATURE_REPO)
-    os.system(command="feast apply")
-    return feature_view
+    feature_view = FeatureView(name=feature_view_name, schema=schema, source=file_source, online=True, entities=[station_ids])
+
+    return feature_view, station_ids
 
 
 if __name__ == "__main__":

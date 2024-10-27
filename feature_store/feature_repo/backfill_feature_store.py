@@ -36,7 +36,6 @@ def backfill_features(scenario: str) -> None:
     ts_data = processor.make_time_series()[0] if scenario == "start" else processor.make_time_series()[1]
     ts_data["timestamp"] = pd.to_datetime(ts_data[f"{scenario}_hour"]).astype(int) // 10 ** 6  # Express in ms
 
-
     get_and_push_data(scenario=scenario, for_predictions=False, data=ts_data)
 
 
@@ -98,12 +97,12 @@ def get_and_push_data(scenario: str, for_predictions: bool, data: pd.DataFrame) 
     if for_predictions:
         feature_view = store.get_feature_view()
     else:
-        feature_view = get_or_create_feature_view(scenario=scenario, for_predictions=for_predictions, file_source=source)
+        feature_view, station_ids = get_or_create_feature_view(scenario=scenario, for_predictions=for_predictions, file_source=source)
 
-        today = datetime.now().strftime("%Y-%m-%d")
-        store.apply([source, feature_view])    
-        
-        materialize_command = f"feast materialize-incremental {today}"
+        os.chdir(path=FEATURE_REPO)
+        store.apply([station_ids, feature_view])  
+
+        materialize_command = f"feast materialize-incremental {datetime.now().strftime('%Y-%m-%d')}"
         os.system(command=materialize_command)
 
         store.write_to_online_store(feature_view_name=feature_view.name, allow_registry_cache=True, df=data)
