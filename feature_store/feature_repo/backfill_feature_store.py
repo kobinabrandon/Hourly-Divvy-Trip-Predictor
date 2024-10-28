@@ -34,14 +34,17 @@ class Backfiller:
         self.scenario = scenario    
         self.for_predictions = for_predictions
 
-        if for_predictions:
-            self.source_path = INFERENCE_DATA/f"predicted_{scenario}s.parquet"
-            self.description = f"Hourly predictions for {config.displayed_scenario_names[scenario].lower()}"
-        else:
-            self.source_path = TIME_SERIES_DATA/f"{scenario}_ts.parquet"
-            self.description = f"Hourly time series data for {config.displayed_scenario_names[scenario].lower()}"
+        self.feature_source = FileSource(
+            path=str(TIME_SERIES_DATA/f"{scenario}_ts.parquet"),
+            description=f"Hourly time series data for {config.displayed_scenario_names[scenario].lower()}"
+        )
         
-        self.source = FileSource(path=str(self.source_path), file_format=ParquetFormat(), description=self.description)
+        self.prediction_source = FileSource(
+            path=str(INFERENCE_DATA/f"predicted_{scenario}s.parquet"),
+            file_format=ParquetFormat(),
+            description=f"Hourly predictions for {config.displayed_scenario_names[scenario].lower()}"
+        )
+
         self.store = FeatureStore(repo_path=FEATURE_REPO, fs_yaml_file=FEATURE_REPO/"feature_store.yaml")
 
 
@@ -55,7 +58,6 @@ class Backfiller:
         Returns:
             None
         """
-        self.for_predictions = False
         processor = DataProcessor(year=config.year, for_inference=False)
         ts_data = processor.make_time_series()[0] if self.scenario == "start" else processor.make_time_series()[1]
         ts_data["timestamp"] = pd.to_datetime(ts_data[f"{self.scenario}_hour"]).astype(int) // 10 ** 6  # Express in ms
@@ -76,21 +78,25 @@ class Backfiller:
         Returns:
             None
         """
+        start_date= datetime.now() - timedelta(days=30)
+        end_date = datetime.now() + timedelta(days=1)
+        
         model_name = "xgboost" if self.scenario == "start" else "lightgbm"
         tuned_or_not = "untuned" if self.scenario == "start" else "tuned"
 
         registry = ModelRegistry(scenario=self.scenario, model_name=model_name, tuned_or_not=tuned_or_not)
         model = registry.download_latest_model(unzip=True)
         
-        start_date= datetime.now() - timedelta(days=30)
-        end_date = datetime.now() + timedelta(days=1)
-
         entity_sql = f"""
-            SELECT {self.scenario}_station_id, timestamp
-            FROM {self.store.get_data_source(name=f"{self.scenario}_ts.parquet").get_table_query_string()}
-            WHERE timestamp BETWEEN '{start_date}' and '{end_date}' 
+            SELECT {self.scenario}_station_id, {self.scenario}_hour
+            FROM {
+                self.store.get_data_source(name=self.feature_source).get_table_query_string()
+            }
+            WHERE {self.scenario}_hour BETWEEN '{start_date}' and '{end_date}' 
             GROUP by {self.scenario}_station_id
         """
+
+        breakpoint()
 
         ts_data = self.store.get_historical_features(entity_df=entity_sql, features=self.store.get_feature_service()).to_df()
         breakpoint()
