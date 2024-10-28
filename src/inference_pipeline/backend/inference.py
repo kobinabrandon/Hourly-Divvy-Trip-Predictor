@@ -16,10 +16,9 @@ from loguru import logger
 from argparse import ArgumentParser
 
 from datetime import datetime, timedelta
-from hsfs.feature_group import FeatureGroup
-from hsfs.feature_view import FeatureView
 
 from sklearn.pipeline import Pipeline
+from sagemaker.feature_store.feature_group import FeatureGroup
 
 from src.setup.config import config
 from src.setup.paths import ROUNDING_INDEXER, MIXED_INDEXER, INFERENCE_DATA
@@ -27,17 +26,16 @@ from src.setup.paths import ROUNDING_INDEXER, MIXED_INDEXER, INFERENCE_DATA
 from src.feature_pipeline.preprocessing import DataProcessor
 from src.feature_pipeline.feature_engineering import finish_feature_engineering
 from src.inference_pipeline.backend.model_registry_api import ModelRegistry
-from src.inference_pipeline.backend.feature_store_api import setup_feature_group, get_or_create_feature_view
+from src.inference_pipeline.backend.feature_store_api import setup_feature_group
 
 
-def get_feature_group_for_time_series(scenario: str, primary_key: list[str]) -> FeatureGroup:
+def get_feature_group_for_time_series(scenario: str, data: pd.DataFrame, primary_key: list[str]) -> FeatureGroup:
 
     return setup_feature_group(
         scenario=scenario,
+        data=data,
         primary_key=primary_key,
         description=f"Hourly time series data for {config.displayed_scenario_names[scenario].lower()}",
-        name=f"{scenario}_feature_group",
-        version=config.feature_group_version,
         for_predictions=False
     )
 
