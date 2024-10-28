@@ -42,15 +42,14 @@ def get_or_create_feature_view(scenario: str, for_predictions: bool, file_source
     else:       
         data_path = TIME_SERIES_DATA/f"{scenario}_ts.parquet"
         feature_view_name = f"{scenario}_ts"
-        
+    
     data: pd.DataFrame = pd.read_parquet(path=data_path)
-
-    station_ids = Entity(name=f"{scenario}_station_id", join_keys=[f"{scenario}_station_id"])
+    entity = Entity(name=f"{scenario}_station_id", join_keys=[f"{scenario}_station_id"])
     schema = [Field(name=column, dtype=convert_pandas_types(for_schema=True, dtype=data[column].dtype)) for column in data.columns]
 
-    feature_view = FeatureView(name=feature_view_name, schema=schema, source=file_source, online=True, entities=[station_ids])
+    feature_view = FeatureView(name=feature_view_name, schema=schema, source=file_source, online=True, entities=[entity])
 
-    return feature_view, station_ids
+    return feature_view, entity
 
 
 if __name__ == "__main__":
