@@ -4,6 +4,7 @@ data.
 """
 import json 
 import pandas as pd
+from tqdm import tqdm 
 from loguru import logger
 from argparse import ArgumentParser
 from datetime import datetime, timedelta
@@ -28,6 +29,18 @@ from src.inference_pipeline.backend.model_registry_api import ModelRegistry
 from src.inference_pipeline.backend.inference import get_model_predictions
 
 
+def split_features_for_pushing(scenario: str, data: pd.DataFrame):
+
+    data_per_station = {}
+    for station_id in tqdm(
+        iterable=data[f"{scenario}_station_id"].unique(),
+        desc="Splitting data by station"
+    ):
+        data_per_station[str(station_id)] = data[data[f"{scenario}_station_id"] == station_id] 
+    
+    return data_per_station
+
+
 def backfill_features(scenario: str) -> None:
     """
     Run the preprocessing script and upload the time series data to the feature store.
@@ -35,17 +48,23 @@ def backfill_features(scenario: str) -> None:
     Args:
         scenario: Determines whether we are looking at arrival or departure data. Its value must be "start" or "end".
 
-    Returns:
+    Returns:    
         None
     """
     event_time = "timestamp"
     primary_key = ["timestamp", f"{scenario}_station_id"]
     processor = DataProcessor(year=config.year, for_inference=False)
     ts_data = processor.make_time_series()[0] if scenario == "start" else processor.make_time_series()[1]
-    ts_data["timestamp"] = pd.to_datetime(ts_data[f"{scenario}_hour"]).astype(int) // 10 ** 6  # Express in ms
+    ts_data["timestamp"] = pd.to_datetime(ts_data[f"{scenario}_hour"]).astype(int) // 10 ** 9
 
     ts_feature_group = get_feature_group_for_time_series(scenario=scenario, data=ts_data)
-    ts_feature_group.ingest(data_frame=ts_data)  # Push time series data to the feature group
+    ts_data_per_station = split_features_for_pushing(scenario=scenario, data=ts_data)
+
+    for station_id, station_data in tqdm(
+        iterable=ts_data_per_station.items(),
+        desc=logger.info(f"Pushing data to the feature store by the station")
+    ):  
+        ts_feature_group.ingest(data_frame=station_data)  # Push time series data to the feature group
 
 
 def backfill_predictions(scenario: str, target_date: datetime, using_mixed_indexer: bool = True) -> None:
@@ -59,7 +78,6 @@ def backfill_predictions(scenario: str, target_date: datetime, using_mixed_index
         target_date (datetime): the date up to which we want our predictions.
         
     """
-    primary_key = [f"{scenario}_station_id"]
     start_date = target_date - timedelta(days=config.backfill_days)
     end_date = target_date + timedelta(days=1)
     
@@ -105,7 +123,6 @@ def backfill_predictions(scenario: str, target_date: datetime, using_mixed_index
 
 
 if __name__ == "__main__":
-
     parser = ArgumentParser()
     parser.add_argument("--scenarios", type=str, nargs="+")
     parser.add_argument("--target", type=str)

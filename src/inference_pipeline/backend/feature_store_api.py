@@ -29,9 +29,7 @@ def setup_feature_group(
     feature_group_name = f"{model_name}_{scenario}_predictions_feature_group" if for_predictions else f"{scenario}_ts"
     feature_group = FeatureGroup(name=feature_group_name)
 
-    data["timestamp"] = data["timestamp"].astype(float)  # To meet AWS feature type requirements
     data[f"{scenario}_hour"] = data[f"{scenario}_hour"].dt.strftime('%Y-%m-%d %H:%M:%S').astype(str)
-    
     feature_group.load_feature_definitions(data_frame=data)
 
     try:
@@ -56,5 +54,7 @@ def check_feature_group_status(feature_group: FeatureGroup):
 
     while status == "Creating": 
         logger.warning("Creating feature group")
-        time.sleep(secs=5)
+        time.sleep(secs=5)  
+        status = feature_group.describe().get("FeatureGroupStatus")
+
     logger.success(f"Feature group {feature_group.feature_group_name} created")
