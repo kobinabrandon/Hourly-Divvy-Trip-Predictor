@@ -44,8 +44,8 @@ def backfill_features(scenario: str) -> None:
     ts_data = processor.make_time_series()[0] if scenario == "start" else processor.make_time_series()[1]
     ts_data["timestamp"] = pd.to_datetime(ts_data[f"{scenario}_hour"]).astype(int) // 10 ** 6  # Express in ms
 
-    ts_feature_group = get_feature_group_for_time_series(scenario=scenario, data=ts_data, primary_key=primary_key)
-    ts_feature_group.ingest(data_frame=ts_data) # Push time series data to the feature group
+    ts_feature_group = get_feature_group_for_time_series(scenario=scenario, data=ts_data)
+    ts_feature_group.ingest(data_frame=ts_data)  # Push time series data to the feature group
 
 
 def backfill_predictions(scenario: str, target_date: datetime, using_mixed_indexer: bool = True) -> None:

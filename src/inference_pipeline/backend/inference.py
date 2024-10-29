@@ -29,12 +29,11 @@ from src.inference_pipeline.backend.model_registry_api import ModelRegistry
 from src.inference_pipeline.backend.feature_store_api import setup_feature_group
 
 
-def get_feature_group_for_time_series(scenario: str, data: pd.DataFrame, primary_key: list[str]) -> FeatureGroup:
+def get_feature_group_for_time_series(scenario: str, data: pd.DataFrame) -> FeatureGroup:
 
     return setup_feature_group(
         scenario=scenario,
         data=data,
-        primary_key=primary_key,
         description=f"Hourly time series data for {config.displayed_scenario_names[scenario].lower()}",
         for_predictions=False
     )
@@ -141,7 +140,6 @@ def fetch_predictions_group(scenario: str, model_name: str) -> FeatureGroup:
         scenario=scenario,
         primary_key=None,
         description=f"predictions on {scenario} data using the {tuned_or_not} {model_name}",
-        name=f"{model_name}_{scenario}_predictions_feature_group",
         version=config.feature_group_version,
         for_predictions=True
     )

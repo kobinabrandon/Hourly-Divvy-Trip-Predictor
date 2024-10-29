@@ -23,6 +23,12 @@ class GeneralConfig(BaseSettings):
     comet_workspace: str
     comet_project_name: str
 
+    # AWS
+    aws_access_key_id: str
+    aws_secret_access_key: str
+    aws_default_region: str
+    aws_arn: str
+
     backfill_days: int = 30
     current_hour: datetime = pd.to_datetime(datetime.now(tz=UTC)).floor("H")
     displayed_scenario_names: dict = {"start": "Departures", "end": "Arrivals"} 
