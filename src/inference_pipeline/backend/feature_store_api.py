@@ -49,12 +49,19 @@ def setup_feature_group(
     return feature_group
 
 
+
+
+
 def check_feature_group_status(feature_group: FeatureGroup):
     status = feature_group.describe().get("FeatureGroupStatus")
 
-    while status == "Creating": 
-        logger.warning("Creating feature group")
-        time.sleep(secs=5)  
-        status = feature_group.describe().get("FeatureGroupStatus")
+    while status != "Created":
+        try:
+            status = feature_group.describe()["OfflineStoreStatus"]["Status"]
+        except:
+            raise Exception
 
-    logger.success(f"Feature group {feature_group.feature_group_name} created")
+        logger.warning("Offline feature store status", status)    
+        time.sleep(secs=15)  
+
+    logger.success(f"Feature group {feature_group.name} created")

@@ -24,7 +24,7 @@ from src.inference_pipeline.backend.inference import (
     fetch_time_series_and_make_features
 )
 
-from src.inference_pipeline.backend.feature_store_api import setup_feature_group
+from src.inference_pipeline.backend.feature_store_api import setup_feature_group, check_feature_group_status
 from src.inference_pipeline.backend.model_registry_api import ModelRegistry
 from src.inference_pipeline.backend.inference import get_model_predictions
 
@@ -56,15 +56,18 @@ def backfill_features(scenario: str) -> None:
     processor = DataProcessor(year=config.year, for_inference=False)
     ts_data = processor.make_time_series()[0] if scenario == "start" else processor.make_time_series()[1]
     ts_data["timestamp"] = pd.to_datetime(ts_data[f"{scenario}_hour"]).astype(int) // 10 ** 9
+    ts_data["timestamp"] = ts_data["timestamp"].astype(str)
 
     ts_feature_group = get_feature_group_for_time_series(scenario=scenario, data=ts_data)
     ts_data_per_station = split_features_for_pushing(scenario=scenario, data=ts_data)
 
     for station_id, station_data in tqdm(
         iterable=ts_data_per_station.items(),
-        desc=logger.info(f"Pushing data to the feature store by the station")
+        desc=logger.info(f"Pushing {scenario} data to the feature store (by the station)")
     ):  
-        ts_feature_group.ingest(data_frame=station_data)  # Push time series data to the feature group
+        status = ts_feature_group.describe().get("FeatureGroupStatus")
+        while status == "Active":
+            ts_feature_group.ingest(data_frame=station_data)  # Push time series data to the feature group
 
 
 def backfill_predictions(scenario: str, target_date: datetime, using_mixed_indexer: bool = True) -> None:
