@@ -39,15 +39,15 @@ class FeatureStoreAPI:
             s3_uri=f"s3://{self.session.default_bucket()}/divvy_features",
             enable_online_store=True,
             record_identifier_name=f"{self.scenario}_station_id",
-            event_time_feature_name="timestamp",
+            event_time_feature_name=f"{self.scenario}_hour",
             description=self.description,
             role_arn=config.aws_arn
         )
 
         return self.feature_group
 
-    def fetch_feature_group(self) -> FeatureGroup:
-        return self.feature_group.describe()  
+    def describe_feature_group(self) -> FeatureGroup:
+        return self.feature_group.describe() 
 
     def query_offline_store(self, start_date: datetime, target_date: datetime):
 
@@ -55,10 +55,10 @@ class FeatureStoreAPI:
         target_timestamp = int(target_date.timestamp())
 
         query = self.feature_group.athena_query()
-        table_name = self.fetch_feature_group()['OfflineStoreConfig']['DataCatalogConfig']['TableName']
+        table_name = self.describe_feature_group()['OfflineStoreConfig']['DataCatalogConfig']['TableName']
 
         query_string = f"""
-            SELECT "{self.scenario}_hour", "{self.scenario}_station_id", "trips", "timestamp"
+            SELECT "{self.scenario}_hour", "{self.scenario}_station_id", "trips"
             FROM "sagemaker_featurestore"."{table_name}"
         """
 
