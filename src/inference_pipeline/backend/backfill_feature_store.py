@@ -68,7 +68,7 @@ def backfill_features(scenario: str) -> None:
 
     for station_id, station_data in tqdm(
         iterable=ts_data_per_station.items(),
-        desc=logger.info(f"Pushing {scenario} data to the feature store (by the station)")
+        desc=logger.info(f"Pushing {config.displayed_scenario_names[scenario]} data to the feature store")
     ):  
         status = ts_feature_group.describe().get("FeatureGroupStatus")
         while status == "Active":

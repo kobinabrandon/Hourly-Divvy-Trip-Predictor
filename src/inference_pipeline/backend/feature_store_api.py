@@ -32,13 +32,13 @@ class FeatureStoreAPI:
 
     def create_feature_group(self, data: pd.DataFrame):
 
-        data[f"{scenario}_hour"] = data[f"{scenario}_hour"].dt.strftime('%Y-%m-%d %H:%M:%S').astype(str)
+        data[f"{self.scenario}_hour"] = data[f"{self.scenario}_hour"].dt.strftime('%Y-%m-%d %H:%M:%S').astype(str)
         self.feature_group.load_feature_definitions(data_frame=data)
 
         self.feature_group.create(
             s3_uri=f"s3://{self.session.default_bucket()}/divvy_features",
             enable_online_store=True,
-            record_identifier_name=f"{scenario}_station_id",
+            record_identifier_name=f"{self.scenario}_station_id",
             event_time_feature_name="timestamp",
             description=self.description,
             role_arn=config.aws_arn
@@ -47,14 +47,7 @@ class FeatureStoreAPI:
         return self.feature_group
 
     def fetch_feature_group(self) -> FeatureGroup:
-        """
-        Create or connect to a feature group with the specified name, and return an object that represents it.
-
-        Returns:
-            FeatureGroup: a representation of the fetched or created feature group
-        """
-        self.feature_group.describe()  # If the feature group already exists:
-        return self.feature_group
+        return self.feature_group.describe()  
 
     def query_offline_store(self, start_date: datetime, target_date: datetime):
 
@@ -62,17 +55,15 @@ class FeatureStoreAPI:
         target_timestamp = int(target_date.timestamp())
 
         query = self.feature_group.athena_query()
-        table_name = query.table_name
+        table_name = self.fetch_feature_group()['OfflineStoreConfig']['DataCatalogConfig']['TableName']
 
         query_string = f"""
-            SELECT * 
-            FROM "{self.scenario}_ts"."{self.feature_group_name}"
-            WHERE timestamp BETWEEN {start_timestamp} AND {target_timestamp};
+            SELECT "{self.scenario}_hour", "{self.scenario}_station_id", "trips", "timestamp"
+            FROM "sagemaker_featurestore"."{table_name}"
         """
 
-        query.run(query_string=query_string, output_location=f"s3://{self.session.default_bucket()}/divvy_features/")
+        query.run(query_string=query_string, output_location=f"s3://{self.session.default_bucket()}/'divvy_features'")
         query.wait()
-        
-        breakpoint()
 
+        breakpoint()
         return query.as_dataframe()

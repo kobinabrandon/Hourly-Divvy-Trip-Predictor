@@ -42,11 +42,6 @@ def fetch_time_series_and_make_features(
     features from that data. We then apply feature engineering so that the data aligns with the features from
     the original training data.
 
-    My initial intent was to fetch time series data the 28 days prior to the target date. However, the class
-    method that I am using to convert said data into features requires a larger dataset to work (see the while 
-    loop in the get_cutoff_indices method from the preprocessing module). So after some experimentation, I 
-    decided to go with 168 days of prior time series data. I will look to play around this number in the future.
-
     Args:
         target_date: the date for which we seek predictions.
         geocode: whether to implement geocoding during feature engineering
