@@ -20,11 +20,10 @@ from src.inference_pipeline.backend.inference import (
     make_features,
     load_raw_local_geodata, 
     fetch_predictions_group,
-    get_feature_group_for_time_series,
     fetch_time_series_and_make_features
 )
 
-from src.inference_pipeline.backend.feature_store_api import setup_feature_group, check_feature_group_status
+from src.inference_pipeline.backend.feature_store_api import FeatureStoreAPI
 from src.inference_pipeline.backend.model_registry_api import ModelRegistry
 from src.inference_pipeline.backend.inference import get_model_predictions
 
@@ -58,7 +57,13 @@ def backfill_features(scenario: str) -> None:
     ts_data["timestamp"] = pd.to_datetime(ts_data[f"{scenario}_hour"]).astype(int) // 10 ** 9
     ts_data["timestamp"] = ts_data["timestamp"].astype(str)
 
-    ts_feature_group = get_feature_group_for_time_series(scenario=scenario, data=ts_data)
+    api = FeatureStoreAPI(scenario=scenario, for_predictions=False)
+
+    try:
+        ts_feature_group = api.create_feature_group(data=ts_data)
+    except:
+        ts_feature_group = api.fetch_feature_group()
+
     ts_data_per_station = split_features_for_pushing(scenario=scenario, data=ts_data)
 
     for station_id, station_data in tqdm(
@@ -90,14 +95,16 @@ def backfill_predictions(scenario: str, target_date: datetime, using_mixed_index
 
     registry = ModelRegistry(scenario=scenario, model_name=model_name, tuned_or_not=tuned_or_not)
     model = registry.download_latest_model(unzip=True)
-    
-    ts_feature_group = get_feature_group_for_time_series(scenario=scenario, primary_key=primary_key)
+
+    features_api = FeatureStoreAPI(scenario=scenario, for_predictions=False)
+    ts_feature_group = features_api.fetch_feature_group()
 
     features = fetch_time_series_and_make_features(
         scenario=scenario,
         start_date=start_date,
         target_date=end_date,
         feature_group=ts_feature_group,
+        feature_store_api=features_api,
         geocode=False
     )
 
@@ -113,16 +120,16 @@ def backfill_predictions(scenario: str, target_date: datetime, using_mixed_index
     ids_and_names = fetch_json_of_ids_and_names(scenario=scenario, using_mixed_indexer=True, invert=False)
     predictions[f"{scenario}_station_name"] = predictions[f"{scenario}_station_id"].map(ids_and_names)
 
-    predictions_feature_group = setup_feature_group(
-        scenario=scenario,
-        primary_key=primary_key,
-        description=f"predicting {config.displayed_scenario_names[scenario]} - {tuned_or_not} {model_name}",
-        name=f"{model_name}_{scenario}_predictions_feature_group",
-        for_predictions=True,
-        version=6
+    predictions_api = FeatureStoreAPI(
+        scenario=scenario, 
+        for_predictions=True, 
+        description=f"Hourly time series data for {config.displayed_scenario_names[scenario].lower()}"
     )
-
-    predictions_feature_group.insert(write_options={"wait_for_job": True}, features=predictions)
+    
+    try:
+        predictions_feature_group = predictions_api.create_feature_group(data=predictions)
+    except:
+        predictions_feature_group = predictions_api.fetch_feature_group()
 
 
 if __name__ == "__main__":

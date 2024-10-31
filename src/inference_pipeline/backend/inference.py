@@ -26,17 +26,7 @@ from src.setup.paths import ROUNDING_INDEXER, MIXED_INDEXER, INFERENCE_DATA
 from src.feature_pipeline.preprocessing import DataProcessor
 from src.feature_pipeline.feature_engineering import finish_feature_engineering
 from src.inference_pipeline.backend.model_registry_api import ModelRegistry
-from src.inference_pipeline.backend.feature_store_api import setup_feature_group
-
-
-def get_feature_group_for_time_series(scenario: str, data: pd.DataFrame) -> FeatureGroup:
-
-    return setup_feature_group(
-        scenario=scenario,
-        data=data,
-        description=f"Hourly time series data for {config.displayed_scenario_names[scenario].lower()}",
-        for_predictions=False
-    )
+from src.inference_pipeline.backend.feature_store_api import FeatureStoreAPI
 
 
 def fetch_time_series_and_make_features(
@@ -44,6 +34,7 @@ def fetch_time_series_and_make_features(
     start_date: datetime, 
     target_date: datetime,
     feature_group: FeatureGroup, 
+    feature_store_api: FeatureStoreAPI,
     geocode: bool
     ) -> pd.DataFrame:
     """
@@ -63,18 +54,11 @@ def fetch_time_series_and_make_features(
     Returns:
         pd.DataFrame: time series data 
     """ 
-    feature_view: FeatureView = get_or_create_feature_view(
-        name=f"{scenario}_feature_view",
-        feature_group=feature_group,
-        version=1   
-    )
-
     logger.warning("Fetching time series data from the feature store...")
-    ts_data: pd.DataFrame = feature_view.get_batch_data(
-        start_time=start_date, 
-        end_time=target_date,
-        read_options={"use_hive": True}
-    )
+
+    ts_data: pd.DataFrame = feature_store_api.query_offline_store(start_date=start_date, target_date=target_date)
+    breakpoint()
+
 
     ts_data = ts_data.sort_values(
         by=[f"{scenario}_station_id", f"{scenario}_hour"]
