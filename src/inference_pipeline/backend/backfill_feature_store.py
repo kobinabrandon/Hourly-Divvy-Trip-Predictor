@@ -2,6 +2,7 @@
 This module contains the code that is used to backfill feature and prediction 
 data.
 """
+import time
 import json 
 import pandas as pd
 from tqdm import tqdm 
@@ -64,7 +65,7 @@ def backfill_features(scenario: str) -> None:
     ts_data_per_station = split_features_for_pushing(scenario=scenario, data=ts_data)
     
     try:
-        logger.info(f"Attempting to create the feature group for the {config.displayed_scenario_names[scenario].lower()}s")
+        logger.info(f"Attempting to create the feature group for the {config.displayed_scenario_names[scenario].lower()}")
         ts_feature_group = api.create_feature_group(data=ts_data)
     except Exception as error:
         logger.error(error)
@@ -76,11 +77,15 @@ def backfill_features(scenario: str) -> None:
         desc=logger.info(f"Pushing {config.displayed_scenario_names[scenario][:-1].lower()} data to the feature store")
     ):  
         status = ts_feature_group.describe()["FeatureGroupStatus"]
-        while status in ["Active", "Created"]:
+        while status != "Created":
             try:
-                ts_feature_group.ingest(data_frame=station_data, max_workers=8, wait=False) 
+                offline_store_status = ts_feature_group.describe()["OfflineStoreStatus"]["Status"]
+                logger.warning(f"Offline store status: {offline_store_status}")
             except Exception as error:
                 logger.error(error)
+            
+            time.sleep(secs=15)
+            ts_feature_group.ingest(data_frame=station_data, max_workers=20) 
 
 
 def backfill_predictions(scenario: str, target_date: datetime, using_mixed_indexer: bool = True) -> None:
