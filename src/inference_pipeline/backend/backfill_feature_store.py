@@ -52,23 +52,27 @@ def backfill_features(scenario: str) -> None:
     """
     processor = DataProcessor(year=config.year, for_inference=False)
     ts_data = processor.make_time_series()[0] if scenario == "start" else processor.make_time_series()[1]
+    ts_data[f"{scenario}_hour"] = ts_data[f"{scenario}_hour"].dt.strftime("%Y-%m-%dT%H:%M:%SZ")  # To conform to AWS' requirements
+
     # ts_data["timestamp"] = pd.to_datetime(ts_data[f"{scenario}_hour"]).astype(int) // 10 ** 9
     # ts_data["timestamp"] = ts_data["timestamp"].astype(str)
 
     api = FeatureStoreAPI(scenario=scenario, for_predictions=False)
-
+    ts_data_per_station = split_features_for_pushing(scenario=scenario, data=ts_data)
+    
     try:
+        logger.info(f"Attempting to create the feature group for the {config.displayed_scenario_names[scenario].lower()}s")
         ts_feature_group = api.create_feature_group(data=ts_data)
     except:
+        logger.warning("Unable to create the feature group. Attempting to fetch the feature group if it already exists")
         ts_feature_group = api.feature_group
-
-    ts_data_per_station = split_features_for_pushing(scenario=scenario, data=ts_data)
 
     for station_id, station_data in tqdm(
         iterable=ts_data_per_station.items(),
-        desc=logger.info(f"Pushing {config.displayed_scenario_names[scenario]} data to the feature store")
+        desc=logger.info(f"Pushing {config.displayed_scenario_names[scenario][:-1].lower()} data to the feature store")
     ):  
         status = ts_feature_group.describe()["FeatureGroupStatus"]
+    
         while status in ["Active" , "Created"]:
             ts_feature_group.ingest(data_frame=station_data)  # Push time series data to the feature group
 

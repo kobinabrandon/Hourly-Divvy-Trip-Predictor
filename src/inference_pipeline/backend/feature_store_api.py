@@ -23,16 +23,15 @@ class FeatureStoreAPI:
         self.session = sagemaker.Session()
         self.model_name = "lightgbm" if scenario == "end" else "xgboost"
         self.feature_group_name = f"{self.model_name}_{scenario}_predictions_feature_group" if for_predictions else f"{scenario}_ts"
-        self.feature_group = FeatureGroup(name=self.feature_group_name)
+        self.feature_group = FeatureGroup(name=self.feature_group_name, sagemaker_session=self.session)
 
         if self.for_predictions:
             self.description = f"predicting {config.displayed_scenario_names[scenario]} - {tuned_or_not} {model_name}"
         else:
             self.description = f"Hourly time series data for {config.displayed_scenario_names[scenario].lower()}"
-
+    
     def create_feature_group(self, data: pd.DataFrame):
-
-        data[f"{self.scenario}_hour"] = data[f"{self.scenario}_hour"].dt.strftime('%Y-%m-%d %H:%M:%S').astype(str)
+                                                                                  
         self.feature_group.load_feature_definitions(data_frame=data)
 
         self.feature_group.create(
