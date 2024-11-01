@@ -31,14 +31,14 @@ class FeatureStoreAPI:
             self.description = f"Hourly time series data for {config.displayed_scenario_names[scenario].lower()}"
     
     def create_feature_group(self, data: pd.DataFrame):
-                                                                                  
+                                                   
         self.feature_group.load_feature_definitions(data_frame=data)
 
         self.feature_group.create(
             s3_uri=f"s3://{self.session.default_bucket()}/divvy_features",
             enable_online_store=True,
             record_identifier_name=f"{self.scenario}_station_id",
-            event_time_feature_name=f"{self.scenario}_hour",
+            event_time_feature_name="timestamp",
             description=self.description,
             role_arn=config.aws_arn
         )

@@ -33,7 +33,7 @@ def split_features_for_pushing(scenario: str, data: pd.DataFrame):
     data_per_station = {}
     for station_id in tqdm(
         iterable=data[f"{scenario}_station_id"].unique(),
-        desc="Splitting data by station"
+        desc="Splitting data by the station"
     ):
         data_per_station[str(station_id)] = data[data[f"{scenario}_station_id"] == station_id] 
     
@@ -52,7 +52,10 @@ def backfill_features(scenario: str) -> None:
     """
     processor = DataProcessor(year=config.year, for_inference=False)
     ts_data = processor.make_time_series()[0] if scenario == "start" else processor.make_time_series()[1]
-    ts_data[f"{scenario}_hour"] = ts_data[f"{scenario}_hour"].dt.strftime("%Y-%m-%dT%H:%M:%SZ")  # To conform to AWS' requirements
+    ts_data[f"timestamp"] = ts_data[f"{scenario}_hour"].dt.strftime("%Y-%m-%dT%H:%M:%SZ")  # To conform to AWS' requirements
+    ts_data[f"{scenario}_hour"] = ts_data[f"{scenario}_hour"].astype(str)
+    
+    # ts_data = ts_data.drop(f"{scenario}_hour", axis=1)
 
     # ts_data["timestamp"] = pd.to_datetime(ts_data[f"{scenario}_hour"]).astype(int) // 10 ** 9
     # ts_data["timestamp"] = ts_data["timestamp"].astype(str)
@@ -63,8 +66,9 @@ def backfill_features(scenario: str) -> None:
     try:
         logger.info(f"Attempting to create the feature group for the {config.displayed_scenario_names[scenario].lower()}s")
         ts_feature_group = api.create_feature_group(data=ts_data)
-    except:
-        logger.warning("Unable to create the feature group. Attempting to fetch the feature group if it already exists")
+    except Exception as error:
+        logger.error(error)
+        logger.warning("Attempting to fetch the feature group if it already exists")
         ts_feature_group = api.feature_group
 
     for station_id, station_data in tqdm(
@@ -72,9 +76,12 @@ def backfill_features(scenario: str) -> None:
         desc=logger.info(f"Pushing {config.displayed_scenario_names[scenario][:-1].lower()} data to the feature store")
     ):  
         status = ts_feature_group.describe()["FeatureGroupStatus"]
-    
-        while status in ["Active" , "Created"]:
-            ts_feature_group.ingest(data_frame=station_data)  # Push time series data to the feature group
+        while status in ["Active", "Created"]:
+            try:
+                ts_feature_group.ingest(data_frame=station_data, max_workers=8, wait=False) 
+            except Exception as error:
+                logger.error(error)
+
 
 def backfill_predictions(scenario: str, target_date: datetime, using_mixed_indexer: bool = True) -> None:
     """
