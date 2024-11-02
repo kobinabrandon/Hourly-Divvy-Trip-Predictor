@@ -78,6 +78,17 @@ class FeatureStoreAPI:
 
         return data_per_station
 
+    @staticmethod
+    def feature_group_ready(feature_group: FeatureGroup) -> bool:
+        status = feature_group.describe()["FeatureGroupStatus"]
+        while status == "Creating":
+            logger.warning("Waiting for the feature group to be created")
+            time.sleep(5)
+            status = feature_group.describe()["FeatureGroupStatus"]
+        else:
+            logger.success("Feature group ready for ingestion")
+            return True
+    
 
     def push(self, data: pd.DataFrame) -> None:
 
@@ -85,7 +96,7 @@ class FeatureStoreAPI:
         data[f"{self.scenario}_hour"] = data[f"{self.scenario}_hour"].astype(str)
 
         try:
-            logger.warning(f"Attempting to create feature group for the {config.displayed_scenario_names[self.scenario].lower()}")
+            logger.warning(f"Attempting to create the feature group for {config.displayed_scenario_names[self.scenario].lower()}")
             feature_group = self.create_feature_group(data=data)
         except Exception as error:
             logger.error(error)
@@ -94,17 +105,10 @@ class FeatureStoreAPI:
 
         data_to_push = self.split_data_for_pushing(data=data)
 
-        for station_id, station_data in tqdm(
-            iterable=data_to_push.items(),
-            desc=logger.info(f"Pushing {config.displayed_scenario_names[self.scenario][:-1].lower()} data to the feature store")
-        ):  
-            status = feature_group.describe()["FeatureGroupStatus"]
-            while status == "Active":
-                try:
-                    offline_store_status = feature_group.describe()["OfflineStoreStatus"]["Status"]
-                    logger.warning(f"Offline store status: {offline_store_status}")
-                except Exception as error:
-                    logger.error(error)
-                    time.sleep(secs=15)
-                
+        if self.feature_group_ready(feature_group=feature_group):   
+
+            for station_id, station_data in tqdm(
+                iterable=data_to_push.items(),
+                desc=logger.info(f"Pushing {config.displayed_scenario_names[self.scenario][:-1].lower()} data to the feature store")
+            ):   
                 feature_group.ingest(data_frame=station_data, max_workers=20)   
