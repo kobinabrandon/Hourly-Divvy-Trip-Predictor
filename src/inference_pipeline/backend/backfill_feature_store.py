@@ -55,7 +55,6 @@ def backfill_predictions(scenario: str, target_date: datetime, using_mixed_index
 
     Args:
         target_date (datetime): the date up to which we want our predictions.
-        
     """
     start_date = target_date - timedelta(days=config.backfill_days)
     end_date = target_date + timedelta(days=1)

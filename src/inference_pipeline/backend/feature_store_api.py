@@ -34,14 +34,12 @@ class FeatureStoreAPI:
     
     def create_feature_group(self, data: pd.DataFrame):
 
-        data["index"] = data.index
-                                                   
         self.feature_group.load_feature_definitions(data_frame=data)
 
         self.feature_group.create(
             s3_uri=f"s3://{self.session.default_bucket()}/divvy_features",
             enable_online_store=True,
-            record_identifier_name="index",
+            record_identifier_name=f"{self.scenario}_station_id",
             event_time_feature_name="timestamp",
             description=self.description,
             role_arn=config.aws_arn
@@ -58,7 +56,7 @@ class FeatureStoreAPI:
         table_name = self.describe_feature_group()['OfflineStoreConfig']['DataCatalogConfig']['TableName']
 
         query_string = f"""
-            SELECT "{self.scenario}_hour", "{self.scenario}_station_id", "trips"
+            SELECT *
             FROM "sagemaker_featurestore"."{table_name}";
         """
 
@@ -82,7 +80,7 @@ class FeatureStoreAPI:
     def feature_group_ready(feature_group: FeatureGroup) -> bool:
         status = feature_group.describe()["FeatureGroupStatus"]
         while status == "Creating":
-            logger.warning("Waiting for the feature group to be created")
+            logger.warning("Waiting for feature group to be created")
             time.sleep(5)
             status = feature_group.describe()["FeatureGroupStatus"]
         else:
@@ -96,11 +94,11 @@ class FeatureStoreAPI:
         data[f"{self.scenario}_hour"] = data[f"{self.scenario}_hour"].astype(str)
 
         try:
-            logger.warning(f"Attempting to create the feature group for {config.displayed_scenario_names[self.scenario].lower()}")
+            logger.warning(f"Trying to create feature group for {config.displayed_scenario_names[self.scenario].lower()}")
             feature_group = self.create_feature_group(data=data)
         except Exception as error:
             logger.error(error)
-            logger.warning("Could not create feature group. Attempting to fetch it")
+            logger.warning("Failed to create feature group. Attempting to fetch it")
             feature_group = self.feature_group
 
         data_to_push = self.split_data_for_pushing(data=data)
@@ -111,4 +109,4 @@ class FeatureStoreAPI:
                 iterable=data_to_push.items(),
                 desc=logger.info(f"Pushing {config.displayed_scenario_names[self.scenario][:-1].lower()} data to the feature store")
             ):   
-                feature_group.ingest(data_frame=station_data, max_workers=20)   
+                feature_group.ingest(data_frame=station_data, max_workers=1)   

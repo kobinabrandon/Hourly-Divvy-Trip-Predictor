@@ -55,8 +55,6 @@ def fetch_time_series_and_make_features(
 
     breakpoint()
 
-    ts_data = ts_data.drop("index", axis=1)
-
     ts_data = ts_data.sort_values(
         by=[f"{scenario}_station_id", f"{scenario}_hour"]
     ).reset_index(drop=True)
