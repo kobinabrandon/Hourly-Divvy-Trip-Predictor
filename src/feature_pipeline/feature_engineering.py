@@ -266,7 +266,7 @@ def add_avg_trips_last_4_weeks(features: pd.DataFrame) -> pd.DataFrame:
     return features
 
 
-def add_hours_and_days(features: pd.DataFrame, scenario: str) -> pd.DataFrame:
+def add_hours_and_days(scenario: str, features: pd.DataFrame) -> pd.DataFrame:
     """
     Create features which consist of the hours and days of the week on which the
     departure or arrival is taking place.
@@ -307,7 +307,8 @@ def finish_feature_engineering(features: pd.DataFrame, scenario: str, geocode: b
         pd.DataFrame: a dataframe containing the pre-existing features as well as the new ones.
     """
     logger.warning(f"Initiating feature engineering for the {config.displayed_scenario_names[scenario].lower()}")
-    features_with_hours_and_days = add_hours_and_days(features=features, scenario=scenario)
+
+    features_with_hours_and_days = add_hours_and_days(scenario=scenario, features=features)
     final_features = add_avg_trips_last_4_weeks(features=features_with_hours_and_days)
 
     assert "day_of_the_week" and "average_trips_last_4_weeks" in final_features.columns

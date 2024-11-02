@@ -29,18 +29,6 @@ from src.inference_pipeline.backend.model_registry_api import ModelRegistry
 from src.inference_pipeline.backend.inference import get_model_predictions
 
 
-def split_features_for_pushing(scenario: str, data: pd.DataFrame):
-
-    data_per_station = {}
-    for station_id in tqdm(
-        iterable=data[f"{scenario}_station_id"].unique(),
-        desc="Splitting data by the station"
-    ):
-        data_per_station[str(station_id)] = data[data[f"{scenario}_station_id"] == station_id] 
-    
-    return data_per_station
-
-
 def backfill_features(scenario: str) -> None:
     """
     Run the preprocessing script and upload the time series data to the feature store.
@@ -53,46 +41,16 @@ def backfill_features(scenario: str) -> None:
     """
     processor = DataProcessor(year=config.year, for_inference=False)
     ts_data = processor.make_time_series()[0] if scenario == "start" else processor.make_time_series()[1]
-    ts_data[f"timestamp"] = ts_data[f"{scenario}_hour"].dt.strftime("%Y-%m-%dT%H:%M:%SZ")  # To conform to AWS' requirements
-    ts_data[f"{scenario}_hour"] = ts_data[f"{scenario}_hour"].astype(str)
-    
-    # ts_data = ts_data.drop(f"{scenario}_hour", axis=1)
-
-    # ts_data["timestamp"] = pd.to_datetime(ts_data[f"{scenario}_hour"]).astype(int) // 10 ** 9
-    # ts_data["timestamp"] = ts_data["timestamp"].astype(str)
 
     api = FeatureStoreAPI(scenario=scenario, for_predictions=False)
-    ts_data_per_station = split_features_for_pushing(scenario=scenario, data=ts_data)
-    
-    try:
-        logger.info(f"Attempting to create the feature group for the {config.displayed_scenario_names[scenario].lower()}")
-        ts_feature_group = api.create_feature_group(data=ts_data)
-    except Exception as error:
-        logger.error(error)
-        logger.warning("Attempting to fetch the feature group if it already exists")
-        ts_feature_group = api.feature_group
-
-    for station_id, station_data in tqdm(
-        iterable=ts_data_per_station.items(),
-        desc=logger.info(f"Pushing {config.displayed_scenario_names[scenario][:-1].lower()} data to the feature store")
-    ):  
-        status = ts_feature_group.describe()["FeatureGroupStatus"]
-        while status != "Created":
-            try:
-                offline_store_status = ts_feature_group.describe()["OfflineStoreStatus"]["Status"]
-                logger.warning(f"Offline store status: {offline_store_status}")
-            except Exception as error:
-                logger.error(error)
-            
-            time.sleep(secs=15)
-            ts_feature_group.ingest(data_frame=station_data, max_workers=20) 
+    api.push(data=ts_data)
 
 
 def backfill_predictions(scenario: str, target_date: datetime, using_mixed_indexer: bool = True) -> None:
     """
-    Fetch the registered version of the named model, and download it. Then load a batch of ts_data
+    Fetch the registered version of the named model, and download it. Then load a batch of predictions
     from the relevant feature group (whether for arrival or departure data), and make predictions on those 
-    ts_data using the model. Then create or fetch a feature group for these predictions and push these  
+    predictions using the model. Then create or fetch a feature group for these predictions and push these  
     predictions. 
 
     Args:
@@ -121,6 +79,8 @@ def backfill_predictions(scenario: str, target_date: datetime, using_mixed_index
         geocode=False
     )
 
+    breakpoint()
+
     try:
         features = features.drop(["trips_next_hour", f"{scenario}_hour"], axis=1)
     except Exception as error:
@@ -133,17 +93,9 @@ def backfill_predictions(scenario: str, target_date: datetime, using_mixed_index
     ids_and_names = fetch_json_of_ids_and_names(scenario=scenario, using_mixed_indexer=True, invert=False)
     predictions[f"{scenario}_station_name"] = predictions[f"{scenario}_station_id"].map(ids_and_names)
 
-    predictions_api = FeatureStoreAPI(
-        scenario=scenario, 
-        for_predictions=True, 
-        description=f"Hourly time series data for {config.displayed_scenario_names[scenario].lower()}"
-    )
+    predictions_api = FeatureStoreAPI(scenario=scenario, for_predictions=True)
+    predictions_api.push(data=predictions)
     
-    try:
-        predictions_feature_group = predictions_api.create_feature_group(data=predictions)
-    except:
-        predictions_feature_group = predictions_api.describe_feature_group()
-
 
 if __name__ == "__main__":
     parser = ArgumentParser()

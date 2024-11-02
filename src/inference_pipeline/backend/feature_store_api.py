@@ -7,6 +7,7 @@ import boto3
 import sagemaker 
 import pandas as pd
 
+from tqdm import tqdm
 from loguru import logger
 from datetime import datetime
 
@@ -26,7 +27,8 @@ class FeatureStoreAPI:
         self.feature_group = FeatureGroup(name=self.feature_group_name, sagemaker_session=self.session)
 
         if self.for_predictions:
-            self.description = f"predicting {config.displayed_scenario_names[scenario]} - {tuned_or_not} {model_name}"
+            tuned_or_not = "tuned" if scenario == "end" else "untuned"
+            self.description = f"{config.displayed_scenario_names[scenario]} predicted by the {self.model_name} model ({tuned_or_not})"
         else:
             self.description = f"Hourly time series data for {config.displayed_scenario_names[scenario].lower()}"
     
@@ -58,11 +60,52 @@ class FeatureStoreAPI:
 
         query_string = f"""
             SELECT "{self.scenario}_hour", "{self.scenario}_station_id", "trips"
-            FROM "sagemaker_featurestore"."{table_name}"
+            FROM "sagemaker_featurestore"."{table_name}";
         """
 
         query.run(query_string=query_string, output_location=f"s3://{self.session.default_bucket()}/'divvy_features'")
         query.wait()
 
-        breakpoint()
         return query.as_dataframe()
+
+    def split_data_for_pushing(self, data: pd.DataFrame) -> dict[str, pd.DataFrame]:
+
+        data_per_station = {}
+        for station_id in tqdm(
+            iterable=data[f"{self.scenario}_station_id"].unique(),
+            desc="Splitting data up by the station"
+        ):
+            data_per_station[str(station_id)] = data[data[f"{self.scenario}_station_id"] == station_id] 
+
+        return data_per_station
+
+
+    def push(self, data: pd.DataFrame) -> None:
+
+        data[f"timestamp"] = data[f"{self.scenario}_hour"].dt.strftime("%Y-%m-%dT%H:%M:%SZ")  # To conform to AWS' requirements
+        data[f"{self.scenario}_hour"] = data[f"{self.scenario}_hour"].astype(str)
+
+        try:
+            logger.warning(f"Attempting to create feature group for the {config.displayed_scenario_names[self.scenario].lower()}")
+            feature_group = self.create_feature_group(data=data)
+        except Exception as error:
+            logger.error(error)
+            logger.warning("Could not create feature group. Attempting to fetch it")
+            feature_group = self.feature_group
+
+        data_to_push = self.split_data_for_pushing(data=data)
+
+        for station_id, station_data in tqdm(
+            iterable=data_to_push.items(),
+            desc=logger.info(f"Pushing {config.displayed_scenario_names[self.scenario][:-1].lower()} data to the feature store")
+        ):  
+            status = feature_group.describe()["FeatureGroupStatus"]
+            while status == "Active":
+                try:
+                    offline_store_status = feature_group.describe()["OfflineStoreStatus"]["Status"]
+                    logger.warning(f"Offline store status: {offline_store_status}")
+                except Exception as error:
+                    logger.error(error)
+                
+                time.sleep(secs=15)
+                feature_group.ingest(data_frame=station_data, max_workers=20)   

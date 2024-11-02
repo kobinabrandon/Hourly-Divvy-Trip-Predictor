@@ -29,7 +29,7 @@ class GeneralConfig(BaseSettings):
     aws_default_region: str
     aws_arn: str
 
-    backfill_days: int = 30
+    backfill_days: int = 120
     current_hour: datetime = pd.to_datetime(datetime.now(tz=UTC)).floor("H")
     displayed_scenario_names: dict = {"start": "Departures", "end": "Arrivals"} 
 

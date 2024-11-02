@@ -52,13 +52,16 @@ def fetch_time_series_and_make_features(
     logger.warning("Fetching time series data from the feature store...")
 
     ts_data: pd.DataFrame = feature_store_api.query_offline_store(start_date=start_date, target_date=target_date)
-    breakpoint()
 
+    breakpoint()
 
     ts_data = ts_data.sort_values(
         by=[f"{scenario}_station_id", f"{scenario}_hour"]
-    )
+    ).reset_index(drop=True)
 
+    ts_data[f"{scenario}_hour"] = pd.to_datetime(ts_data[f"{scenario}_hour"])  # To reverse the change that I made because of AWS' requiremnts
+    ts_data = ts_data[ts_data[f"{scenario}_hour"].between(left=start_date, right=target_date)]
+    
     return make_features(
         scenario=scenario, 
         ts_data=ts_data, 
