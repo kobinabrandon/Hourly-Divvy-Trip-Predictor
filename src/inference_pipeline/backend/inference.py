@@ -51,9 +51,11 @@ def fetch_time_series_and_make_features(
     """ 
     logger.warning("Fetching time series data from the feature store...")
 
-    ts_data: pd.DataFrame = feature_store_api.query_offline_store(start_date=start_date, target_date=target_date)
+    ts_data: pd.DataFrame = feature_store_api.query_offline_store()
 
     breakpoint()
+
+    ts_data = ts_data.drop("index", axis=1)
 
     ts_data = ts_data.sort_values(
         by=[f"{scenario}_station_id", f"{scenario}_hour"]

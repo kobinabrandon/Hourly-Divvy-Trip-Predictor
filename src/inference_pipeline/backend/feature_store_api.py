@@ -33,13 +33,15 @@ class FeatureStoreAPI:
             self.description = f"Hourly time series data for {config.displayed_scenario_names[scenario].lower()}"
     
     def create_feature_group(self, data: pd.DataFrame):
+
+        data["index"] = data.index
                                                    
         self.feature_group.load_feature_definitions(data_frame=data)
 
         self.feature_group.create(
             s3_uri=f"s3://{self.session.default_bucket()}/divvy_features",
             enable_online_store=True,
-            record_identifier_name=f"{self.scenario}_station_id",
+            record_identifier_name="index",
             event_time_feature_name="timestamp",
             description=self.description,
             role_arn=config.aws_arn
@@ -50,10 +52,7 @@ class FeatureStoreAPI:
     def describe_feature_group(self) -> FeatureGroup:
         return self.feature_group.describe() 
 
-    def query_offline_store(self, start_date: datetime, target_date: datetime):
-
-        start_timestamp = int(start_date.timestamp())
-        target_timestamp = int(target_date.timestamp())
+    def query_offline_store(self) -> pd.DataFrame:
 
         query = self.feature_group.athena_query()
         table_name = self.describe_feature_group()['OfflineStoreConfig']['DataCatalogConfig']['TableName']
@@ -106,6 +105,6 @@ class FeatureStoreAPI:
                     logger.warning(f"Offline store status: {offline_store_status}")
                 except Exception as error:
                     logger.error(error)
+                    time.sleep(secs=15)
                 
-                time.sleep(secs=15)
                 feature_group.ingest(data_frame=station_data, max_workers=20)   

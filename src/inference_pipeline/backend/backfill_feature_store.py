@@ -79,8 +79,6 @@ def backfill_predictions(scenario: str, target_date: datetime, using_mixed_index
         geocode=False
     )
 
-    breakpoint()
-
     try:
         features = features.drop(["trips_next_hour", f"{scenario}_hour"], axis=1)
     except Exception as error:
