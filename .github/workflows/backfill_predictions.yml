@@ -65,12 +65,6 @@ jobs:
         
     - name: Generating new batch of predictions
       env: 
-        YEAR: ${{ secrets.YEAR }}
-        EMAIL: ${{ secrets.EMAIL }}
-        N_FEATURES: ${{ secrets.N_FEATURES }}
-        FEATURE_GROUP_VERSION: ${{ secrets.FEATURE_GROUP_VERSION }}
-        FEATURE_VIEW_VERSION: ${{ secrets.FEATURE_VIEW_VERSION }}
-
         COMET_PROJECT_NAME: ${{secrets.COMET_PROJECT_NAME }}
         COMET_WORKSPACE: ${{secrets.COMET_WORKSPACE }}
         COMET_API_KEY: ${{ secrets.COMET_API_KEY }}
