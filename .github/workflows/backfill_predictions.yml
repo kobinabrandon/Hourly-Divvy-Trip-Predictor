@@ -78,5 +78,10 @@ jobs:
         HOPSWORKS_PROJECT_NAME: ${{ secrets.HOPSWORKS_PROJECT_NAME }}
         HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
 
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+        AWS_ARN: ${{ secrets.AWS_ARN }}
+        
       run: make backfill-predictions
   
