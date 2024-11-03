@@ -308,8 +308,6 @@ def finish_feature_engineering(features: pd.DataFrame, scenario: str, geocode: b
     """
     logger.warning(f"Initiating feature engineering for the {config.displayed_scenario_names[scenario].lower()}")
 
-    breakpoint()
-
     features_with_hours_and_days = add_hours_and_days(scenario=scenario, features=features)
     final_features = add_avg_trips_last_4_weeks(features=features_with_hours_and_days)
 

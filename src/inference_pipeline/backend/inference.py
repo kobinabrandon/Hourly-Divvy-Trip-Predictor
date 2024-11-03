@@ -33,8 +33,6 @@ def fetch_time_series_and_make_features(
     scenario: str, 
     start_date: datetime, 
     target_date: datetime,
-    feature_group: FeatureGroup, 
-    feature_store_api: FeatureStoreAPI,
     geocode: bool
     ) -> pd.DataFrame:
     """
@@ -49,14 +47,19 @@ def fetch_time_series_and_make_features(
     Returns:
         pd.DataFrame: time series data 
     """ 
-    logger.warning("Fetching time series data from the feature store...")
-    ts_data: pd.DataFrame = feature_store_api.query_offline_store()
+    logger.warning("Fetching time series data from the feature store or local file...")
+
+    try:
+        ts_data: pd.DataFrame = pd.read_parquet(path=INFERENCE_DATA/f"{scenario}_ts.parquet")
+    except Exception as error:
+        logger.error(error)
+        
+        from src.inference_pipeline.backend.backfill_feature_store import backfill_features  # To prevent a circular import error
+        ts_data = backfill_features(scenario=scenario)
 
     ts_data = ts_data.sort_values(
         by=[f"{scenario}_station_id", f"{scenario}_hour"]
     ).reset_index(drop=True)
-
-    breakpoint()
 
     ts_data[f"{scenario}_hour"] = pd.to_datetime(ts_data[f"{scenario}_hour"])  # To reverse the change that I made because of AWS' requiremnts
     ts_data = ts_data[ts_data[f"{scenario}_hour"].between(left=start_date, right=target_date)]
@@ -126,13 +129,12 @@ def fetch_predictions_group(scenario: str, model_name: str) -> FeatureGroup:
     )
 
 
-def load_predictions_from_store(scenario: str, from_hour: datetime, to_hour: datetime, model_name: str) -> pd.DataFrame:
+def load_predictions_from_store(scenario: str, from_hour: datetime, to_hour: datetime) -> pd.DataFrame:
     """
     Load a dataframe containing predictions from their dedicated feature group on the offline feature store.
     This dataframe will contain predicted values between the specified hours. 
 
     Args:
-        model_name: the model's name is part of the name of the feature view to be queried
         from_hour: the first hour for which we want the predictions
         to_hour: the last hour for would like to receive predictions.
 
@@ -143,18 +145,20 @@ def load_predictions_from_store(scenario: str, from_hour: datetime, to_hour: dat
     from_hour = pd.to_datetime(from_hour, utc=True)
     to_hour = pd.to_datetime(to_hour, utc=True)
         
-    predictions_group = fetch_predictions_group(scenario=scenario, model_name=model_name)
+    api = FeatureStoreAPI(scenario=scenario, for_predictions=True)
 
-    predictions_feature_view: FeatureView = get_or_create_feature_view(
-        name=f"{model_name}_{scenario}_predictions",
-        feature_group=predictions_group,
-        version=1
-    )
+    predictions_df = api.query_offline_store()
+    # predictions_df[f"{scenario}_hour"] = pd.to_datetime(predictions_df[f"{scenario}_hour"])
+    # predictions_df[f"{scenario}_hour"] = datetime.fromisoformat(predictions_df[f"{scenario}_hour"].values)
 
-    predictions_df = predictions_feature_view.get_batch_data(
-        start_time=from_hour - timedelta(days=1), 
-        end_time=to_hour + timedelta(days=1)
-    )
+    breakpoint()
+
+    predictions_df = predictions_df[
+        predictions_df[f"{scenario}_hour"].between(
+            left=from_hour - timedelta(days=1), 
+            right=to_hour + timedelta(days=1)
+        )
+    ]
 
     predictions_df[f"{scenario}_hour"] = pd.to_datetime(predictions_df[f"{scenario}_hour"], utc=True)
 

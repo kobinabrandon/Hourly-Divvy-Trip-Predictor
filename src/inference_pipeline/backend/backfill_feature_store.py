@@ -2,7 +2,6 @@
 This module contains the code that is used to backfill feature and prediction 
 data.
 """
-import time
 import json 
 import pandas as pd
 from tqdm import tqdm 
@@ -17,33 +16,35 @@ from src.setup.paths import MIXED_INDEXER, ROUNDING_INDEXER, INFERENCE_DATA
 from src.feature_pipeline.preprocessing import DataProcessor
 from src.feature_pipeline.mixed_indexer import fetch_json_of_ids_and_names
 
-from src.inference_pipeline.backend.inference import (
-    make_features,
-    load_raw_local_geodata, 
-    fetch_predictions_group,
-    fetch_time_series_and_make_features
-)
+from src.inference_pipeline.backend.inference import fetch_time_series_and_make_features
 
 from src.inference_pipeline.backend.feature_store_api import FeatureStoreAPI
 from src.inference_pipeline.backend.model_registry_api import ModelRegistry
 from src.inference_pipeline.backend.inference import get_model_predictions
 
 
-def backfill_features(scenario: str) -> None:
+def backfill_features(scenario: str, local: bool = True) -> None:
     """
-    Run the preprocessing script and upload the time series data to the feature store.
+    Run the preprocessing script and upload the time series data to local storage or the feature store.
+    You'll want to save this data locally this because pushing to AWS will take forever.
 
     Args:
         scenario: Determines whether we are looking at arrival or departure data. Its value must be "start" or "end".
+        local (bool, optional): whether to save the time series data locally. Defaults to True.
 
-    Returns:    
-        None
+    Returns:
+        _type_: _description_
     """
     processor = DataProcessor(year=config.year, for_inference=False)
     ts_data = processor.make_time_series()[0] if scenario == "start" else processor.make_time_series()[1]
 
-    api = FeatureStoreAPI(scenario=scenario, for_predictions=False)
-    api.push(data=ts_data)
+    if local:
+        ts_data.to_parquet(path=INFERENCE_DATA/f"{scenario}_ts.parquet")
+    else:
+        api = FeatureStoreAPI(scenario=scenario, for_predictions=False)
+        api.push(data=ts_data)
+
+    return ts_data
 
 
 def backfill_predictions(scenario: str, target_date: datetime, using_mixed_indexer: bool = True) -> None:
@@ -66,15 +67,10 @@ def backfill_predictions(scenario: str, target_date: datetime, using_mixed_index
     registry = ModelRegistry(scenario=scenario, model_name=model_name, tuned_or_not=tuned_or_not)
     model = registry.download_latest_model(unzip=True)
 
-    features_api = FeatureStoreAPI(scenario=scenario, for_predictions=False)
-    ts_feature_group = features_api.describe_feature_group()
-
     features = fetch_time_series_and_make_features(
         scenario=scenario,
         start_date=start_date,
         target_date=end_date,
-        feature_group=ts_feature_group,
-        feature_store_api=features_api,
         geocode=False
     )
 
@@ -89,7 +85,7 @@ def backfill_predictions(scenario: str, target_date: datetime, using_mixed_index
     # Now to add station names to the predictions
     ids_and_names = fetch_json_of_ids_and_names(scenario=scenario, using_mixed_indexer=True, invert=False)
     predictions[f"{scenario}_station_name"] = predictions[f"{scenario}_station_id"].map(ids_and_names)
-    
+
     predictions_api = FeatureStoreAPI(scenario=scenario, for_predictions=True)
     predictions_api.push(data=predictions)
     

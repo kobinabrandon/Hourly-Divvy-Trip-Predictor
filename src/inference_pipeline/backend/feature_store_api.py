@@ -55,10 +55,16 @@ class FeatureStoreAPI:
         query = self.feature_group.athena_query()
         table_name = self.describe_feature_group()['OfflineStoreConfig']['DataCatalogConfig']['TableName']
 
-        query_string = f"""
-            SELECT "{self.scenario}_hour", "{self.scenario}_station_id", "trips"
-            FROM "sagemaker_featurestore"."{table_name}";
-        """
+        if self.for_predictions:
+            query_string = f"""
+                SELECT "{self.scenario}_hour", "{self.scenario}_station_id", "predicted_{self.scenario}s"
+                FROM "sagemaker_featurestore"."{table_name}";
+            """
+        else:
+            query_string = f"""
+                SELECT "{self.scenario}_hour", "{self.scenario}_station_id", "trips"
+                FROM "sagemaker_featurestore"."{table_name}";
+            """
 
         query.run(query_string=query_string, output_location=f"s3://{self.session.default_bucket()}/'divvy_features'")
         query.wait()
@@ -99,14 +105,19 @@ class FeatureStoreAPI:
             logger.error(error)
             logger.warning("Failed to create feature group. Attempting to fetch it")
             feature_group = self.feature_group
+        
 
-        data_to_push = self.split_data_for_pushing(data=data)
-
-        if self.feature_group_ready(feature_group=feature_group):   
-
-            for station_id, station_data in tqdm(
-                iterable=data_to_push.items(),
-                desc=logger.info(f"Pushing {config.displayed_scenario_names[self.scenario][:-1].lower()} data to the feature store")
-            ):  
-                logger.info(f"There are {len(station_data)} rows in the data from station #{station_id}")
-                feature_group.ingest(data_frame=station_data, max_workers=20)   
+        if self.for_predictions:
+            feature_group.ingest(data_frame=data, max_workers=20) 
+        
+        else:
+            data_to_push = self.split_data_for_pushing(data=data)
+    
+            if self.feature_group_ready(feature_group=feature_group):   
+            
+                for station_id, station_data in tqdm(
+                    iterable=data_to_push.items(),
+                    desc=logger.info(f"Pushing {config.displayed_scenario_names[self.scenario][:-1].lower()} data to the feature store")
+                ):  
+                    feature_group.ingest(data_frame=station_data, max_workers=20)   
+    
