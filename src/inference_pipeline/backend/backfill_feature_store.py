@@ -89,7 +89,7 @@ def backfill_predictions(scenario: str, target_date: datetime, using_mixed_index
     # Now to add station names to the predictions
     ids_and_names = fetch_json_of_ids_and_names(scenario=scenario, using_mixed_indexer=True, invert=False)
     predictions[f"{scenario}_station_name"] = predictions[f"{scenario}_station_id"].map(ids_and_names)
-
+    
     predictions_api = FeatureStoreAPI(scenario=scenario, for_predictions=True)
     predictions_api.push(data=predictions)
     

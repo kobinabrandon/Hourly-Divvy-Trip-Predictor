@@ -56,7 +56,7 @@ class FeatureStoreAPI:
         table_name = self.describe_feature_group()['OfflineStoreConfig']['DataCatalogConfig']['TableName']
 
         query_string = f"""
-            SELECT *
+            SELECT "{self.scenario}_hour", "{self.scenario}_station_id", "trips"
             FROM "sagemaker_featurestore"."{table_name}";
         """
 
@@ -86,7 +86,6 @@ class FeatureStoreAPI:
         else:
             logger.success("Feature group ready for ingestion")
             return True
-    
 
     def push(self, data: pd.DataFrame) -> None:
 
@@ -108,5 +107,6 @@ class FeatureStoreAPI:
             for station_id, station_data in tqdm(
                 iterable=data_to_push.items(),
                 desc=logger.info(f"Pushing {config.displayed_scenario_names[self.scenario][:-1].lower()} data to the feature store")
-            ):   
-                feature_group.ingest(data_frame=station_data, max_workers=1)   
+            ):  
+                logger.info(f"There are {len(station_data)} rows in the data from station #{station_id}")
+                feature_group.ingest(data_frame=station_data, max_workers=20)   
