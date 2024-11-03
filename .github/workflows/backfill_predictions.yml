@@ -49,7 +49,7 @@ jobs:
 
     - name: Create env file
       run: |
-        touch .envs
+        touch .env
         echo EMAIL = ${{ secrets.EMAIL }} > .env
         
         echo COMET_PROJECT_NAME = ${{secrets.COMET_PROJECT_NAME }} > .env
