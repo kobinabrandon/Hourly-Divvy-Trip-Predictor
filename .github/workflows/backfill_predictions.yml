@@ -1,4 +1,4 @@
-name: inference-pipeline
+name: backfill-features
 
 on:
   schedule:
@@ -74,9 +74,6 @@ jobs:
         COMET_PROJECT_NAME: ${{secrets.COMET_PROJECT_NAME }}
         COMET_WORKSPACE: ${{secrets.COMET_WORKSPACE }}
         COMET_API_KEY: ${{ secrets.COMET_API_KEY }}
-
-        HOPSWORKS_PROJECT_NAME: ${{ secrets.HOPSWORKS_PROJECT_NAME }}
-        HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
 
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
