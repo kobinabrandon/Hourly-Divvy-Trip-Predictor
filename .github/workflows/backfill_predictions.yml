@@ -2,9 +2,7 @@ name: backfill-features
 
 on:
   schedule:
-  - cron: '*/60 * * * *'
-
-  workflow_dispatch:
+  - cron: '0 * * * *'
 
 env:
   PYTHON_VERSION: 3.12.4
@@ -51,11 +49,9 @@ jobs:
       run: |
         touch .env
         echo EMAIL = ${{ secrets.EMAIL }} > .env
-        
         echo COMET_PROJECT_NAME = ${{secrets.COMET_PROJECT_NAME }} > .env
-        echo COMET_WORKSPACE = ${{secrets.COMET_WORKSPACE }} > .env
+        echo COMET_WORKSPACE = ${{secrets.COMET_WORKSPACE }} > .env546
         echo COMET_API_KEY = ${{ secrets.COMET_API_KEY }} > .env
-
         echo AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }} > .env
         echo AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }} > .env
         echo AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }} > .env
@@ -63,6 +59,7 @@ jobs:
         
     - name: Generating new batch of predictions
       env: 
+        EMAIL: ${{ secrets.EMAIL }}
         COMET_PROJECT_NAME: ${{secrets.COMET_PROJECT_NAME }}
         COMET_WORKSPACE: ${{secrets.COMET_WORKSPACE }}
         COMET_API_KEY: ${{ secrets.COMET_API_KEY }}
