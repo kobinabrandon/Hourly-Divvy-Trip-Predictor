@@ -4,6 +4,8 @@ on:
   schedule:
   - cron: '0 * * * *'
 
+  workflow_dispatch:
+
 env:
   PYTHON_VERSION: 3.12.4
   POETRY_VERSION: 1.8.3
