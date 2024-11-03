@@ -49,19 +49,17 @@ jobs:
 
     - name: Create env file
       run: |
-        touch .env
-        echo YEAR = ${{ secrets.YEAR }} > .env
+        touch .envs
         echo EMAIL = ${{ secrets.EMAIL }} > .env
-        echo N_FEATURES = ${{ secrets.N_FEATURES }} > .env
-        echo FEATURE_GROUP_VERSION = ${{ secrets.FEATURE_GROUP_VERSION }} > .env
-        echo FEATURE_VIEW_VERSION = ${{ secrets.FEATURE_VIEW_VERSION }} > .env
         
         echo COMET_PROJECT_NAME = ${{secrets.COMET_PROJECT_NAME }} > .env
         echo COMET_WORKSPACE = ${{secrets.COMET_WORKSPACE }} > .env
         echo COMET_API_KEY = ${{ secrets.COMET_API_KEY }} > .env
-        echo HOPSWORKS_PROJECT_NAME = ${{ secrets.HOPSWORKS_PROJECT_NAME }} > .env
-        echo HOPSWORKS_API_KEY = ${{ secrets.HOPSWORKS_API_KEY }} > .env
 
+        echo AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }} > .env
+        echo AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }} > .env
+        echo AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }} > .env
+        echo AWS_ARN: ${{ secrets.AWS_ARN }} > .env
         
     - name: Generating new batch of predictions
       env: 
