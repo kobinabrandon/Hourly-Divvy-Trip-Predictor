@@ -59,7 +59,7 @@ jobs:
         echo AWS_DEFAULT_REGION = ${{ secrets.AWS_DEFAULT_REGION }} > .env
         echo AWS_ARN = ${{ secrets.AWS_ARN }} > .env 
         
-    - name: Generating new batch of predictions
+    - name: Generating new batch of features for the month
       env: 
         EMAIL: ${{ secrets.EMAIL }}
         COMET_PROJECT_NAME: ${{secrets.COMET_PROJECT_NAME }}
