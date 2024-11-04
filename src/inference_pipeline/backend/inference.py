@@ -50,14 +50,14 @@ def fetch_time_series_and_make_features(
     logger.warning("Fetching time series data from the feature store or local file...")
 
     feature_api = FeatureStoreAPI(scenario=scenario, for_predictions=False)
-    ts_data = feature_api.query_offline_store()
+    ts_data = feature_api.query_offline_store(start_date=start_date, target_date=target_date)
 
     ts_data = ts_data.sort_values(
         by=[f"{scenario}_station_id", f"{scenario}_hour"]
     ).reset_index(drop=True)
 
-    ts_data[f"{scenario}_hour"] = pd.to_datetime(ts_data[f"{scenario}_hour"])  # To reverse the change that I made because of AWS' requiremnts
-    ts_data = ts_data[ts_data[f"{scenario}_hour"].between(left=start_date, right=target_date)]
+    ts_data[f"{scenario}_hour"] = pd.to_datetime(ts_data[f"{scenario}_hour"], errors="coerce")  # To reverse the change that I made because of AWS' requiremnts
+    assert ts_data == ts_data[ts_data[f"{scenario}_hour"].between(left=start_date, right=target_date)]  # Just to make sure the SQL query worked as intended
     
     return make_features(
         scenario=scenario, 
@@ -102,28 +102,6 @@ def make_features(
     return features
 
 
-def fetch_predictions_group(scenario: str, model_name: str) -> FeatureGroup:
-    """
-    Return the feature group used for predictions.
-
-    Args:
-        model_name (str): the name of the model
-
-    Returns:
-        FeatureGroup: the feature group for the given model's predictions.
-    """
-    assert model_name in ["xgboost", "lightgbm"], 'The selected model architectures are currently "xgboost" and "lightgbm"'
-    tuned_or_not = "tuned" if model_name == "lightgbm" else "untuned"
-       
-    return setup_feature_group(
-        scenario=scenario,
-        primary_key=None,
-        description=f"predictions on {scenario} data using the {tuned_or_not} {model_name}",
-        version=config.feature_group_version,
-        for_predictions=True
-    )
-
-
 def load_predictions_from_store(scenario: str, from_hour: datetime, to_hour: datetime) -> pd.DataFrame:
     """
     Load a dataframe containing predictions from their dedicated feature group on the offline feature store.
@@ -142,20 +120,12 @@ def load_predictions_from_store(scenario: str, from_hour: datetime, to_hour: dat
         
     api = FeatureStoreAPI(scenario=scenario, for_predictions=True)
 
-    predictions_df = api.query_offline_store()
-    # predictions_df[f"{scenario}_hour"] = pd.to_datetime(predictions_df[f"{scenario}_hour"])
-    # predictions_df[f"{scenario}_hour"] = datetime.fromisoformat(predictions_df[f"{scenario}_hour"].values)
+    predictions_df = api.query_offline_store(
+        start_date=from_hour - timedelta(days=1),
+        target_date=to_hour + timedelta(days=1)
+    )
 
-    breakpoint()
-
-    predictions_df = predictions_df[
-        predictions_df[f"{scenario}_hour"].between(
-            left=from_hour - timedelta(days=1), 
-            right=to_hour + timedelta(days=1)
-        )
-    ]
-
-    predictions_df[f"{scenario}_hour"] = pd.to_datetime(predictions_df[f"{scenario}_hour"], utc=True)
+    predictions_df[f"{scenario}_hour"] = pd.to_datetime(predictions_df[f"{scenario}_hour"], errors="coerce", utc=True)
 
     return predictions_df.sort_values(
         by=[f"{scenario}_hour", f"{scenario}_station_id"]

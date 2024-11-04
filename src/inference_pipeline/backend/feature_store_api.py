@@ -50,26 +50,30 @@ class FeatureStoreAPI:
     def describe_feature_group(self) -> FeatureGroup:
         return self.feature_group.describe() 
 
-    def query_offline_store(self) -> pd.DataFrame:
+    def query_offline_store(self, start_date: datetime, target_date: datetime) -> pd.DataFrame:
 
         query = self.feature_group.athena_query()
+        start_timestamp, target_timestamp = start_date.timestamp(), target_date.timestamp()
+
         table_name = self.describe_feature_group()['OfflineStoreConfig']['DataCatalogConfig']['TableName']
 
         if self.for_predictions:
             query_string = f"""
-                SELECT "{self.scenario}_hour", "{self.scenario}_station_id", "predicted_{self.scenario}s"
+                SELECT "{self.scenario}_station_name", "{self.scenario}_station_id", "{self.scenario}_hour", "timestamp", "predicted_{self.scenario}s"
+                WHERE "timestamp" BETWEEN {start_timestamp} AND {target_timestamp}
                 FROM "sagemaker_featurestore"."{table_name}";
             """
         else:
             query_string = f"""
-                SELECT "{self.scenario}_hour", "{self.scenario}_station_id", "trips"
+                SELECT "{self.scenario}_hour", "{self.scenario}_station_id", "trips", "timestamp"
+                WHERE "timestamp" BETWEEN {start_timestamp} AND {target_timestamp}
                 FROM "sagemaker_featurestore"."{table_name}";
             """
 
         query.run(query_string=query_string, output_location=f"s3://{self.session.default_bucket()}/'divvy_features'")
         query.wait()
 
-        return query.as_dataframe()
+        return query.as_dataframe().drop("timestamp", axis=1)
 
     def split_data_for_pushing(self, data: pd.DataFrame) -> dict[str, pd.DataFrame]:
 
