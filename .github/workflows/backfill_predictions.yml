@@ -1,4 +1,4 @@
-name: backfill-predictions
+name: backfill-features
 
 on:
   schedule:

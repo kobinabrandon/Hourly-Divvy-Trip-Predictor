@@ -5,7 +5,6 @@ data.
 import json 
 import pandas as pd
 from tqdm import tqdm 
-from pathlib import Path
 from loguru import logger
 from argparse import ArgumentParser
 from datetime import datetime, timedelta
@@ -24,7 +23,7 @@ from src.inference_pipeline.backend.model_registry_api import ModelRegistry
 from src.inference_pipeline.backend.inference import get_model_predictions
 
 
-def backfill_features(scenario: str, local: bool = False) -> None:
+def backfill_features(scenario: str, local: bool = True) -> None:
     """
     Run the preprocessing script and upload the time series data to local storage or the feature store.
     You'll want to save this data locally this because pushing to AWS will take forever.
@@ -68,17 +67,12 @@ def backfill_predictions(scenario: str, target_date: datetime, using_mixed_index
     registry = ModelRegistry(scenario=scenario, model_name=model_name, tuned_or_not=tuned_or_not)
     model = registry.download_latest_model(unzip=True)
 
-    local_feature_path = INFERENCE_DATA/ f"{scenario}s.parquet"
-
-    if Path(local_feature_path).exists():
-        features = pd.read_parquet(local_feature_path)
-    else:
-        features = fetch_time_series_and_make_features(
-            scenario=scenario,
-            start_date=start_date,
-            target_date=end_date,
-            geocode=False
-        )
+    features = fetch_time_series_and_make_features(
+        scenario=scenario,
+        start_date=start_date,
+        target_date=end_date,
+        geocode=False
+    )
 
     try:
         features = features.drop(["trips_next_hour", f"{scenario}_hour"], axis=1)
