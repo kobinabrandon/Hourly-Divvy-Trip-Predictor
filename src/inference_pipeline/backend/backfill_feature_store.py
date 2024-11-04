@@ -23,7 +23,7 @@ from src.inference_pipeline.backend.model_registry_api import ModelRegistry
 from src.inference_pipeline.backend.inference import get_model_predictions
 
 
-def backfill_features(scenario: str, local: bool = True) -> None:
+def backfill_features(scenario: str, local: bool = False) -> None:
     """
     Run the preprocessing script and upload the time series data to local storage or the feature store.
     You'll want to save this data locally this because pushing to AWS will take forever.
