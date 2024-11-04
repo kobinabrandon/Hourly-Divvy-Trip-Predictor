@@ -49,13 +49,8 @@ def fetch_time_series_and_make_features(
     """ 
     logger.warning("Fetching time series data from the feature store or local file...")
 
-    try:
-        ts_data: pd.DataFrame = pd.read_parquet(path=INFERENCE_DATA/f"{scenario}_ts.parquet")
-    except Exception as error:
-        logger.error(error)
-        
-        from src.inference_pipeline.backend.backfill_feature_store import backfill_features  # To prevent a circular import error
-        ts_data = backfill_features(scenario=scenario)
+    feature_api = FeatureStoreAPI(scenario=scenario, for_predictions=False)
+    ts_data = feature_api.query_offline_store()
 
     ts_data = ts_data.sort_values(
         by=[f"{scenario}_station_id", f"{scenario}_hour"]
