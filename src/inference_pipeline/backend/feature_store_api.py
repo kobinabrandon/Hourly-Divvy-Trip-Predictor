@@ -106,18 +106,12 @@ class FeatureStoreAPI:
             logger.warning("Failed to create feature group. Attempting to fetch it")
             feature_group = self.feature_group
         
-
-        if self.for_predictions:
-            feature_group.ingest(data_frame=data, max_workers=20) 
-        
-        else:
-            data_to_push = self.split_data_for_pushing(data=data)
+        data_to_push = self.split_data_for_pushing(data=data)
     
-            if self.feature_group_ready(feature_group=feature_group):   
-            
-                for station_id, station_data in tqdm(
-                    iterable=data_to_push.items(),
-                    desc=logger.info(f"Pushing {config.displayed_scenario_names[self.scenario][:-1].lower()} data to the feature store")
-                ):  
-                    feature_group.ingest(data_frame=station_data, max_workers=20)   
+        if self.feature_group_ready(feature_group=feature_group):           
+            for station_id, station_data in tqdm(
+                iterable=data_to_push.items(),
+                desc=logger.info(f"Pushing {config.displayed_scenario_names[self.scenario][:-1].lower()} data to the feature store")
+            ):  
+                feature_group.ingest(data_frame=station_data, max_workers=20)   
     

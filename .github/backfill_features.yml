@@ -1,8 +1,8 @@
-name: backfill-predictions
+name: backfill-features
 
 on:
   schedule:
-  - cron: '0 * * * *'
+  - cron: '0 18 7 * *'  # Start on the 7th of every month at 6PM 
 
   workflow_dispatch:
 
@@ -71,5 +71,5 @@ jobs:
         AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
         AWS_ARN: ${{ secrets.AWS_ARN }}
         
-      run: make backfill-predictions
+      run: make backfill-features
   
