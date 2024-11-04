@@ -1,0 +1,75 @@
+name: backfill-features
+
+on:
+  schedule:
+  - cron: '0 18 7 * *'  # Start on the 7th of every month at 6PM 
+
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: 3.12.4
+  POETRY_VERSION: 1.8.3
+  POETRY_URL: https://install.python-poetry.org
+
+jobs:
+
+  inference_pipeline:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    # Poetry cache depends on OS, Python version and Poetry version.
+    - name: Cache Poetry cache
+      uses: actions/cache@v3
+
+      with:
+        path: ~/.cache/pypoetry
+        key: poetry-cache-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ env.POETRY_VERSION }}
+    
+    # virtualenv cache should depends on OS, Python version and `poetry.lock` (and optionally workflow files).
+    - name: Cache Packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.local
+        key: poetry-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/poetry.lock') }}-${{ hashFiles('.github/workflows/*.yml') }}
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install Poetry
+      run: |
+        curl -sSL ${{ env.POETRY_URL }} | python - --version ${{ env.POETRY_VERSION }}
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+    
+    - name: Install Dependencies
+      run: poetry install
+
+    - name: Create env file
+      run: |
+        touch .env
+        echo EMAIL = ${{ secrets.EMAIL }} > .env
+        echo COMET_PROJECT_NAME = ${{secrets.COMET_PROJECT_NAME }} > .env
+        echo COMET_WORKSPACE = ${{secrets.COMET_WORKSPACE }} > .env
+        echo COMET_API_KEY = ${{ secrets.COMET_API_KEY }} > .env
+        echo AWS_ACCESS_KEY_ID = ${{ secrets.AWS_ACCESS_KEY_ID }} > .env
+        echo AWS_SECRET_ACCESS_KEY = ${{ secrets.AWS_SECRET_ACCESS_KEY }} > .env
+        echo AWS_DEFAULT_REGION = ${{ secrets.AWS_DEFAULT_REGION }} > .env
+        echo AWS_ARN = ${{ secrets.AWS_ARN }} > .env 
+        
+    - name: Generating new batch of predictions
+      env: 
+        EMAIL: ${{ secrets.EMAIL }}
+        COMET_PROJECT_NAME: ${{secrets.COMET_PROJECT_NAME }}
+        COMET_WORKSPACE: ${{secrets.COMET_WORKSPACE }}
+        COMET_API_KEY: ${{ secrets.COMET_API_KEY }}
+
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+        AWS_ARN: ${{ secrets.AWS_ARN }}
+        
+      run: make backfill-features
+  
