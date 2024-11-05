@@ -50,30 +50,29 @@ class FeatureStoreAPI:
     def describe_feature_group(self) -> FeatureGroup:
         return self.feature_group.describe() 
 
-    def query_offline_store(self, start_date: datetime, target_date: datetime) -> pd.DataFrame:
+    def query_offline_store(self, start_date: datetime | None, target_date: datetime | None) -> pd.DataFrame:
 
         query = self.feature_group.athena_query()
-        start_timestamp, target_timestamp = start_date.timestamp(), target_date.timestamp()
-
         table_name = self.describe_feature_group()['OfflineStoreConfig']['DataCatalogConfig']['TableName']
 
         if self.for_predictions:
             query_string = f"""
-                SELECT "{self.scenario}_station_name", "{self.scenario}_station_id", "{self.scenario}_hour", "timestamp", "predicted_{self.scenario}s"
-                WHERE "timestamp" BETWEEN {start_timestamp} AND {target_timestamp}
+                SELECT "{self.scenario}_station_name", "{self.scenario}_station_id", "{self.scenario}_hour", "predicted_{self.scenario}s"
                 FROM "sagemaker_featurestore"."{table_name}";
             """
         else:
+            start_timestamp, target_timestamp = start_date.timestamp(), target_date.timestamp()
+
             query_string = f"""
                 SELECT "{self.scenario}_hour", "{self.scenario}_station_id", "trips", "timestamp"
-                WHERE "timestamp" BETWEEN {start_timestamp} AND {target_timestamp}
-                FROM "sagemaker_featurestore"."{table_name}";
+                FROM "sagemaker_featurestore"."{table_name}"
+                WHERE "timestamp" BETWEEN {start_timestamp} AND {target_timestamp};
             """
 
         query.run(query_string=query_string, output_location=f"s3://{self.session.default_bucket()}/'divvy_features'")
         query.wait()
 
-        return query.as_dataframe().drop("timestamp", axis=1)
+        return query.as_dataframe().drop("timestamp", axis=1) if not self.for_predictions else query.as_dataframe()
 
     def split_data_for_pushing(self, data: pd.DataFrame) -> dict[str, pd.DataFrame]:
 
@@ -105,11 +104,11 @@ class FeatureStoreAPI:
         try:
             logger.warning(f"Trying to create feature group for {config.displayed_scenario_names[self.scenario].lower()}")
             feature_group = self.create_feature_group(data=data)
+            
         except Exception as error:
             logger.error(error)
             logger.warning("Failed to create feature group. Attempting to fetch it")
             feature_group = self.feature_group
-        
 
         if self.for_predictions:
             feature_group.ingest(data_frame=data, max_workers=20) 
