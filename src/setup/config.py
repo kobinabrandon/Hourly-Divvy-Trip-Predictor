@@ -26,8 +26,8 @@ class GeneralConfig(BaseSettings):
     # Hopsworks
     hopsworks_api_key: str
     hopsworks_project_name: str
-    feature_group_version: int = 6
-    feature_view_version: int = 1
+    feature_group_version: int = 3
+    feature_view_version: int = 3
 
     backfill_days: int = 30
     current_hour: datetime = pd.to_datetime(datetime.now(tz=UTC)).floor("H")
