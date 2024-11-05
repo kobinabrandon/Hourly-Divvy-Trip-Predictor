@@ -26,10 +26,9 @@ from src.inference_pipeline.backend.inference import get_model_predictions
 class Backfiller:
     def __init__(self, scenario: str):
         self.scenario = scenario
-        self.target_date = datetime.now()
 
-        self.start_date = self.target_date - timedelta(days=config.backfill_days) - timedelta(days=config.backfill_days)  # Just for now.
-        self.end_date = self.target_date + timedelta(days=1)
+        self.start_date = datetime.now() - timedelta(days=config.backfill_days) - timedelta(days=config.backfill_days)  # Just for now.
+        self.end_date = datetime.now() + timedelta(days=1)
 
     def push_features(self, local: bool = False) -> None:
         """
@@ -66,7 +65,7 @@ class Backfiller:
         predictions. 
 
         Args:
-            target_date (datetime): the date up to which we want our predictions.
+            using_mixed_indexer (bool): whether the mixed indexer was used to index the stations.
         """
         # The best model architectures for arrivals & departures at the moment
         model_name = "lightgbm" if self.scenario == "end" else "xgboost"

@@ -61,8 +61,11 @@ class FeatureStoreAPI:
                 FROM "sagemaker_featurestore"."{table_name}";
             """
         else:
-            start_timestamp, target_timestamp = start_date.timestamp(), target_date.timestamp()
+            assert (start_date != None and target_date != None), 'You must provide a start and end date when  \
+            contains a missing station ID or a station name (not both). This will have occurred due to a change in the data'
 
+            start_timestamp, target_timestamp = start_date.timestamp(), target_date.timestamp()
+            
             query_string = f"""
                 SELECT "{self.scenario}_hour", "{self.scenario}_station_id", "trips", "timestamp"
                 FROM "sagemaker_featurestore"."{table_name}"
