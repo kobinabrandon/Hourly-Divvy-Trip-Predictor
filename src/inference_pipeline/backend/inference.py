@@ -16,10 +16,9 @@ from loguru import logger
 from argparse import ArgumentParser
 
 from datetime import datetime, timedelta
-from hsfs.feature_group import FeatureGroup
-from hsfs.feature_view import FeatureView
 
 from sklearn.pipeline import Pipeline
+from sagemaker.feature_store.feature_group import FeatureGroup
 
 from src.setup.config import config
 from src.setup.paths import ROUNDING_INDEXER, MIXED_INDEXER, INFERENCE_DATA
@@ -27,37 +26,19 @@ from src.setup.paths import ROUNDING_INDEXER, MIXED_INDEXER, INFERENCE_DATA
 from src.feature_pipeline.preprocessing import DataProcessor
 from src.feature_pipeline.feature_engineering import finish_feature_engineering
 from src.inference_pipeline.backend.model_registry_api import ModelRegistry
-from src.inference_pipeline.backend.feature_store_api import setup_feature_group, get_or_create_feature_view
-
-
-def get_feature_group_for_time_series(scenario: str, primary_key: list[str]) -> FeatureGroup:
-
-    return setup_feature_group(
-        scenario=scenario,
-        primary_key=primary_key,
-        description=f"Hourly time series data for {config.displayed_scenario_names[scenario].lower()}",
-        name=f"{scenario}_feature_group",
-        version=config.feature_group_version,
-        for_predictions=False
-    )
+from src.inference_pipeline.backend.feature_store_api import FeatureStoreAPI
 
 
 def fetch_time_series_and_make_features(
     scenario: str, 
     start_date: datetime, 
     target_date: datetime,
-    feature_group: FeatureGroup, 
     geocode: bool
     ) -> pd.DataFrame:
     """
     Queries the offline feature store for time series data within a certain timeframe, and creates features
     features from that data. We then apply feature engineering so that the data aligns with the features from
     the original training data.
-
-    My initial intent was to fetch time series data the 28 days prior to the target date. However, the class
-    method that I am using to convert said data into features requires a larger dataset to work (see the while 
-    loop in the get_cutoff_indices method from the preprocessing module). So after some experimentation, I 
-    decided to go with 168 days of prior time series data. I will look to play around this number in the future.
 
     Args:
         target_date: the date for which we seek predictions.
@@ -66,23 +47,18 @@ def fetch_time_series_and_make_features(
     Returns:
         pd.DataFrame: time series data 
     """ 
-    feature_view: FeatureView = get_or_create_feature_view(
-        name=f"{scenario}_feature_view",
-        feature_group=feature_group,
-        version=1   
-    )
+    logger.warning("Fetching time series data from the feature store or local file...")
 
-    logger.warning("Fetching time series data from the feature store...")
-    ts_data: pd.DataFrame = feature_view.get_batch_data(
-        start_time=start_date, 
-        end_time=target_date,
-        read_options={"use_hive": True}
-    )
+    feature_api = FeatureStoreAPI(scenario=scenario, for_predictions=False)
+    ts_data = feature_api.query_offline_store(start_date=start_date, target_date=target_date)
 
     ts_data = ts_data.sort_values(
         by=[f"{scenario}_station_id", f"{scenario}_hour"]
-    )
+    ).reset_index(drop=True)
 
+    ts_data[f"{scenario}_hour"] = pd.to_datetime(ts_data[f"{scenario}_hour"], errors="coerce")  # To reverse the change that I made because of AWS' requiremnts
+    assert ts_data == ts_data[ts_data[f"{scenario}_hour"].between(left=start_date, right=target_date)]  # Just to make sure the SQL query worked as intended
+    
     return make_features(
         scenario=scenario, 
         ts_data=ts_data, 
@@ -126,36 +102,12 @@ def make_features(
     return features
 
 
-def fetch_predictions_group(scenario: str, model_name: str) -> FeatureGroup:
-    """
-    Return the feature group used for predictions.
-
-    Args:
-        model_name (str): the name of the model
-
-    Returns:
-        FeatureGroup: the feature group for the given model's predictions.
-    """
-    assert model_name in ["xgboost", "lightgbm"], 'The selected model architectures are currently "xgboost" and "lightgbm"'
-    tuned_or_not = "tuned" if model_name == "lightgbm" else "untuned"
-       
-    return setup_feature_group(
-        scenario=scenario,
-        primary_key=None,
-        description=f"predictions on {scenario} data using the {tuned_or_not} {model_name}",
-        name=f"{model_name}_{scenario}_predictions_feature_group",
-        version=config.feature_group_version,
-        for_predictions=True
-    )
-
-
-def load_predictions_from_store(scenario: str, from_hour: datetime, to_hour: datetime, model_name: str) -> pd.DataFrame:
+def load_predictions_from_store(scenario: str, from_hour: datetime, to_hour: datetime) -> pd.DataFrame:
     """
     Load a dataframe containing predictions from their dedicated feature group on the offline feature store.
     This dataframe will contain predicted values between the specified hours. 
 
     Args:
-        model_name: the model's name is part of the name of the feature view to be queried
         from_hour: the first hour for which we want the predictions
         to_hour: the last hour for would like to receive predictions.
 
@@ -166,20 +118,14 @@ def load_predictions_from_store(scenario: str, from_hour: datetime, to_hour: dat
     from_hour = pd.to_datetime(from_hour, utc=True)
     to_hour = pd.to_datetime(to_hour, utc=True)
         
-    predictions_group = fetch_predictions_group(scenario=scenario, model_name=model_name)
+    api = FeatureStoreAPI(scenario=scenario, for_predictions=True)
 
-    predictions_feature_view: FeatureView = get_or_create_feature_view(
-        name=f"{model_name}_{scenario}_predictions",
-        feature_group=predictions_group,
-        version=1
+    predictions_df = api.query_offline_store(
+        start_date=from_hour - timedelta(days=1),
+        target_date=to_hour + timedelta(days=1)
     )
 
-    predictions_df = predictions_feature_view.get_batch_data(
-        start_time=from_hour - timedelta(days=1), 
-        end_time=to_hour + timedelta(days=1)
-    )
-
-    predictions_df[f"{scenario}_hour"] = pd.to_datetime(predictions_df[f"{scenario}_hour"], utc=True)
+    predictions_df[f"{scenario}_hour"] = pd.to_datetime(predictions_df[f"{scenario}_hour"], errors="coerce", utc=True)
 
     return predictions_df.sort_values(
         by=[f"{scenario}_hour", f"{scenario}_station_id"]

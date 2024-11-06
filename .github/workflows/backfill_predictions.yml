@@ -51,14 +51,13 @@ jobs:
       run: |
         touch .env
         echo EMAIL = ${{ secrets.EMAIL }} > .env
-        
+
         echo COMET_PROJECT_NAME = ${{secrets.COMET_PROJECT_NAME }} > .env
         echo COMET_WORKSPACE = ${{secrets.COMET_WORKSPACE }} > .env
         echo COMET_API_KEY = ${{ secrets.COMET_API_KEY }} > .env
 
         echo HOPSWORKS_PROJECT_NAME = ${{ secrets.HOPSWORKS_PROJECT_NAME }} > .env
         echo HOPSWORKS_API_KEY = ${{ secrets.HOPSWORKS_API_KEY }} > .env
-
         
     - name: Generating new batch of predictions
       env: 
@@ -67,9 +66,9 @@ jobs:
         COMET_PROJECT_NAME: ${{secrets.COMET_PROJECT_NAME }}
         COMET_WORKSPACE: ${{secrets.COMET_WORKSPACE }}
         COMET_API_KEY: ${{ secrets.COMET_API_KEY }}
-
-        HOPSWORKS_PROJECT_NAME: ${{ secrets.HOPSWORKS_PROJECT_NAME }}
+        
+        HOPSWORKS_PROJECT_NAME: ${{ secrets.HOPSWORKS_PROJECT_NAME }} 
         HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
-
+        
       run: make backfill-predictions
   

@@ -55,9 +55,6 @@ jobs:
         echo COMET_PROJECT_NAME = ${{secrets.COMET_PROJECT_NAME }} > .env
         echo COMET_WORKSPACE = ${{secrets.COMET_WORKSPACE }} > .env
         echo COMET_API_KEY = ${{ secrets.COMET_API_KEY }} > .env
-
-        echo FEATURE_GROUP_VERSION = ${{ secrets.FEATURE_GROUP_VERSION }} > .env
-        echo FEATURE_VIEW_VERSION = ${{ secrets.FEATURE_VIEW_VERSION }} > .env
         
         echo HOPSWORKS_PROJECT_NAME = ${{ secrets.HOPSWORKS_PROJECT_NAME }} > .env
         echo HOPSWORKS_API_KEY = ${{ secrets.HOPSWORKS_API_KEY }} > .env

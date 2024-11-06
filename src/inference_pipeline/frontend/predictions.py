@@ -37,13 +37,7 @@ def retrieve_predictions(from_hour: datetime, to_hour: datetime) -> pd.DataFrame
     prediction_dataframes =[]
     for scenario in config.displayed_scenario_names.keys():                
         model_name = "lightgbm" if scenario == "end" else "xgboost"
-
-        predictions: pd.DataFrame = load_predictions_from_store(
-            scenario=scenario,
-            model_name=model_name, 
-            from_hour=from_hour, 
-            to_hour=to_hour
-        )
+        predictions: pd.DataFrame = load_predictions_from_store(scenario=scenario, from_hour=from_hour, to_hour=to_hour)
         
         prediction_dataframes.append(predictions)
 
@@ -198,7 +192,6 @@ class ColourModule:
 
 def colour_points_by_discrepancy(merged_data: pd.DataFrame) -> pd.DataFrame:
 
-    
     merged_data["discrepancy"] = merged_data["predicted_starts"] - merged_data["predicted_ends"]
     
     merged_data[f"fill_colour"] = merged_data["discrepancy"].apply(
@@ -210,7 +203,7 @@ def colour_points_by_discrepancy(merged_data: pd.DataFrame) -> pd.DataFrame:
 
     return merged_data
     
-
+    
 def fully_merge_data(
     start_geodataframe: pd.DataFrame,
     end_geodataframe: pd.DataFrame,
@@ -352,7 +345,6 @@ if __name__ != "__main__":
         tracker.next()
 
     st.sidebar.write("✅ Prepared predictions")
-
     with st.spinner(text="Setting up ingredients for the map"):
         
         geographical_features_and_predictions = fully_merge_data(
