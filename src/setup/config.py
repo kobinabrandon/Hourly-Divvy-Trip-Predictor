@@ -21,10 +21,10 @@ class GeneralConfig(BaseSettings):
     )
 
     years: list[Year] = [
-        Year(value=2024, offset=9),
         Year(value=2025, offset=0)
     ]
 
+    email: str
     n_features: int = 672
 
     # Hopsworks
@@ -35,8 +35,6 @@ class GeneralConfig(BaseSettings):
     current_hour: datetime = pd.to_datetime(datetime.now(tz=UTC)).floor("H")
     displayed_scenario_names: dict[str, str] = {"start": "Departures", "end": "Arrivals"} 
 
-    email: str
-    # Comet
     comet_api_key: str
     comet_workspace: str
     comet_project_name: str

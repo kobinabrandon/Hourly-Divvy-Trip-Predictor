@@ -7,9 +7,8 @@ from datetime import datetime
 
 from xgboost import XGBRegressor
 from lightgbm import LGBMRegressor
-from sklearn.linear_model import Lasso
-
 from sklearn.pipeline import Pipeline
+from sklearn.linear_model import Lasso
 from sklearn.metrics import mean_absolute_error
 
 from src.setup.paths import TRAINING_DATA, MODELS_DIR, make_fundamental_paths

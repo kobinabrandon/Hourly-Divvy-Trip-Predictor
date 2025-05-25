@@ -24,8 +24,8 @@ class ModelRegistry:
 
     def get_registered_model_version(self) -> str:
         api = API(api_key=config.comet_api_key)
-        
-        model_details: dict[list | dict] = api.get_registry_model_details(
+
+        model_details: dict[str | Any] | None = api.get_registry_model_details(
             workspace=config.comet_workspace, 
             registry_name=self.registered_name
         )
@@ -34,7 +34,7 @@ class ModelRegistry:
         model_versions = model_details["versions"][0]["version"]
         return model_versions
 
-    def push_model_to_registry(self, status: str, version: str) -> None:
+    def push_model(self, status: str, version: str) -> None:
         """
         Find the model (saved locally), log it to CometML, and register it at the model registry.
 
@@ -52,7 +52,7 @@ class ModelRegistry:
         registered_name = self._set_registered_name()
 
         model_file = LOCAL_SAVE_DIR/f"{registered_name}.pkl"
-        experiment.log_model(name=registered_name, file_or_folder=str(model_file))
+        _ = experiment.log_model(name=registered_name, file_or_folder=str(model_file))
         logger.success(f"Finished logging the {self.model_name} model")
 
         logger.info(f'Pushing version {version} of the model to the registry under "{status.title()}"...')
@@ -73,6 +73,7 @@ class ModelRegistry:
         if not Path(COMET_SAVE_DIR/f"{self.registered_name}.pkl").exists():
 
             api = API(api_key=config.comet_api_key)
+
             api.download_registry_model(
                 workspace=config.comet_workspace,   
                 registry_name=self.registered_name,

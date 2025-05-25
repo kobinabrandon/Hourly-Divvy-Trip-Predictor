@@ -1,4 +1,4 @@
-import json
+import json 
 from pathlib import Path
 
 import numpy as np
@@ -553,12 +553,13 @@ class CutoffIndexer:
             step_size (int): how many rows down we move as we repeat the process
         """
 
-        self.ts_data = ts_data
-        self.step_size = step_size
-        self.input_seq_len = input_seq_len
-        self.stop_position = len(ts_data) - 1
+        self.ts_data: pd.DataFrame = ts_data
+        self.step_size: int = step_size
+        self.input_seq_len: int = input_seq_len
+        self.stop_position: int = len(ts_data) - 1
 
-        self.use_standard_indexer = self.use_standard_cutoff_indexer()
+        self.use_standard_indexer: bool = self.use_standard_cutoff_indexer()
+        self.indices: list[tuple[int, int, int]] = self._get_cutoff_indices()
         self.indices = self._get_cutoff_indices()
 
     def use_standard_cutoff_indexer(self) -> bool:
@@ -654,6 +655,6 @@ class CutoffIndexer:
 
 if __name__ == "__main__":
     make_fundamental_paths()
-    trips_2024 = DataProcessor(years=config.years, for_inference=False)
-    _ = trips_2024.make_training_data(geocode=False) 
+    processor= DataProcessor(years=config.years, for_inference=False)
+    _ = processor.make_training_data(geocode=False) 
 

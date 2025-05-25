@@ -284,3 +284,4 @@ def load_raw_local_geodata(scenario: str) -> pd.DataFrame | None:
 
     with open(geodata_path, mode="r") as file:
         return pd.read_parquet(geodata_path)
+

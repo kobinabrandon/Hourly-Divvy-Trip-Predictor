@@ -6,11 +6,12 @@ import pickle
 from pathlib import Path
 from argparse import ArgumentParser
 
+from numpy import delete
 import pandas as pd
 from loguru import logger
 
-from comet_ml import Experiment
 from xgboost import XGBRegressor
+from comet_ml import Experiment, API
 from sklearn.metrics import mean_absolute_error
 from sklearn.pipeline import Pipeline, make_pipeline
 
@@ -20,6 +21,17 @@ from src.feature_pipeline.preprocessing import DataProcessor
 from src.inference_pipeline.backend.model_registry_api import ModelRegistry
 from src.training_pipeline.models import get_model
 from src.training_pipeline.hyperparameter_tuning import optimise_hyperparameters
+
+
+def gather_best_model_per_scenario(scenario: str, models_and_errors: dict[str, float] ) -> dict[str, str]:
+
+    best_model = {} 
+    for model_name in models_and_errors.keys():
+        smallest_test_error = min(models_and_errors.values())
+        if models_and_errors[model_name] == smallest_test_error:
+            best_model[scenario] = model_name
+
+    return best_model
 
 
 class Trainer:
@@ -38,11 +50,27 @@ class Trainer:
 
             hyperparameter_trials (int | None): the number of times that we will try to optimize the hyperparameters
         """
-        self.scenario = scenario
-        self.tune_hyperparameters = tune_hyperparameters
-        self.hyperparameter_trials = hyperparameter_trials
-        self.tuned_or_not = "Tuned" if self.tune_hyperparameters else "Untuned"
+        self.scenario: str = scenario
+        self.tune_hyperparameters: bool | None = tune_hyperparameters
+        self.hyperparameter_trials: int = hyperparameter_trials
+        self.tuned_or_not: str = "Tuned" if self.tune_hyperparameters else "Untuned"
         make_fundamental_paths()  # Ensure that all the necessary directories exist.
+
+
+    @staticmethod
+    def delete_any_prior_project(delete_experiments: bool = True):
+        try:
+            api = API(api_key=config.comet_api_key)
+            logger.info("Deleting COMET project...")
+
+            _ = api.delete_project(
+                workspace=config.comet_workspace, 
+                project_name=config.comet_project_name, 
+                delete_experiments=delete_experiments
+            )
+
+        except Exception as error:
+            logger.error(error)
 
     def get_or_make_training_data(self) -> tuple[pd.DataFrame, pd.Series]:
         """
@@ -120,10 +148,7 @@ class Trainer:
             )
 
             logger.success(f"Best model hyperparameters {best_model_hyperparameters}")
-            
-            pipeline = make_pipeline(
-                model_fn(**best_model_hyperparameters)
-            )
+            pipeline = make_pipeline(  model_fn(**best_model_hyperparameters)  )
 
         logger.info("Fitting model...")
 
@@ -151,7 +176,15 @@ class Trainer:
 
         logger.success("Saved model to disk")
 
-    def train_and_register_models(self, model_names: list[str], version: str, status: str) -> None:
+    def register_model(self, model_name: str, version: str, status: str):
+
+        assert status.lower() in ["staging", "production"], 'The status must be either "staging" or "production"'
+        logger.info(f"The best performing model for {self.scenario} is {model_name} -> Pushing it to the CometML model registry")
+        registry = ModelRegistry(model_name=model_name, scenario=self.scenario, tuned_or_not=self.tuned_or_not)
+        registry.push_model(status=status.title(), version=version)
+
+
+    def train_and_register_models(self, model_names: list[str]) -> dict[str, float]:
         """
         Train the named models, identify the best performer (on the test data) and
         register it to the CometML model registry.
@@ -162,28 +195,22 @@ class Trainer:
             status:  the registered status of the model on CometML.
         """
         models_and_errors = {}
-        assert status.lower() in ["staging", "production"], 'The status must be either "staging" or "production"'
-        
         for model_name in model_names:
             test_error = self.train(model_name=model_name)
             models_and_errors[model_name] = test_error
 
-        test_errors = models_and_errors.values()
-
-        for model_name in model_names:
-            if models_and_errors[model_name] == min(test_errors):
-                logger.info(f"The best performing model is {model_name} -> Pushing it to the CometML model registry")
-                registry = ModelRegistry(model_name=model_name, scenario=self.scenario, tuned_or_not=self.tuned_or_not)
-                registry.push_model_to_registry(status=status.title(), version=version)
+        return models_and_errors
 
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("--scenario", type=str)
-    parser.add_argument("--models", type=str, nargs="+", required=True)
-    parser.add_argument("--tune_hyperparameters", action="store_true")
-    parser.add_argument("--hyperparameter_trials", type=int, default=15)
+    _ = parser.add_argument("--scenario", type=str)
+    _ = parser.add_argument("--models", type=str, nargs="+", required=True)
+    _ = parser.add_argument("--tune_hyperparameters", action="store_true")
+    _ = parser.add_argument("--hyperparameter_trials", type=int, default=15)
     args = parser.parse_args()
+
+    version = "1.0.0"
 
     trainer = Trainer(
         scenario=args.scenario,
@@ -191,5 +218,11 @@ if __name__ == "__main__":
         hyperparameter_trials=args.hyperparameter_trials
     )
 
-    trainer.train_and_register_models(model_names=args.models, version="1.0.0", status="production")
+    trainer.delete_any_prior_project()
+    models_and_errors = trainer.train_and_register_models(model_names=args.models)
+    best_model_for_scenario: dict[str, str] = gather_best_model_per_scenario(scenario=args.scenario, models_and_errors=models_and_errors)
+
+    best_model_name = best_model_for_scenario[args.scenario]
+    trainer.register_model(model_name=best_model_name, version=version, status="production")
+    # api.delete_registry_model(workspace=config.comet_workspace, registry_name=)
 

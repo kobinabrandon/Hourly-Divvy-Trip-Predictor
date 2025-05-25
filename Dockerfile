@@ -24,3 +24,4 @@ RUN echo "email = \"\""  >> ~/.streamlit/credentials.toml
 
 RUN touch /var/log/cron.log /var/log/supervisord.log
 ENTRYPOINT ["uv", "run", "streamlit", "run", "src/inference_pipeline/frontend/main.py", "--server.port", "8501"]
+
