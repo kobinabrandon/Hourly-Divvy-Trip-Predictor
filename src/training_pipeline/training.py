@@ -6,7 +6,6 @@ import pickle
 from pathlib import Path
 from argparse import ArgumentParser
 
-from numpy import delete
 import pandas as pd
 from loguru import logger
 
@@ -16,22 +15,17 @@ from sklearn.metrics import mean_absolute_error
 from sklearn.pipeline import Pipeline, make_pipeline
 
 from src.setup.config import config
-from src.setup.paths import TRAINING_DATA, LOCAL_SAVE_DIR, make_fundamental_paths
 from src.feature_pipeline.preprocessing import DataProcessor
-from src.inference_pipeline.backend.model_registry_api import ModelRegistry
 from src.training_pipeline.models import get_model
+from src.inference_pipeline.backend.model_registry_api import ModelRegistry
 from src.training_pipeline.hyperparameter_tuning import optimise_hyperparameters
 
+from src.training_pipeline.cleanup import (
+    gather_best_model_per_scenario, 
+    delete_best_model_from_previous_run, 
+)
 
-def gather_best_model_per_scenario(scenario: str, models_and_errors: dict[str, float] ) -> dict[str, str]:
-
-    best_model = {} 
-    for model_name in models_and_errors.keys():
-        smallest_test_error = min(models_and_errors.values())
-        if models_and_errors[model_name] == smallest_test_error:
-            best_model[scenario] = model_name
-
-    return best_model
+from src.setup.paths import TRAINING_DATA, LOCAL_SAVE_DIR, make_fundamental_paths
 
 
 class Trainer:
@@ -123,8 +117,8 @@ class Trainer:
         )
         
         if not self.tune_hyperparameters:
-            experiment.set_name(name=f"{model_name.title()}(Untuned) model for the {self.scenario}s of trips")
             logger.info("Using the default hyperparameters")
+            experiment.set_name(name=f"{model_name.title()}(Untuned) model for the {self.scenario}s of trips")
 
             if model_name == "base":
                 pipeline = make_pipeline(
@@ -157,7 +151,7 @@ class Trainer:
         test_error = mean_absolute_error(y_true=y_test, y_pred=y_pred)
 
         self.save_model_locally(model_fn=pipeline, model_name=model_name)
-        experiment.log_metric(name="Test M.A.E", value=test_error)
+        experiment.log_metric(name="Test MAE", value=test_error)
         experiment.end()
         
         return test_error
@@ -170,16 +164,18 @@ class Trainer:
             model_fn (Pipeline): the model object to be stored
             model_name (str): the name of the model to be saved
         """
+        logger.success("Saving model to disk")
+
         model_file_name = f"{model_name.title()} ({self.tuned_or_not} for {self.scenario}s).pkl"
         with open(LOCAL_SAVE_DIR/model_file_name, mode="wb") as file:
             pickle.dump(obj=model_fn, file=file)
 
-        logger.success("Saved model to disk")
 
     def register_model(self, model_name: str, version: str, status: str):
 
         assert status.lower() in ["staging", "production"], 'The status must be either "staging" or "production"'
         logger.info(f"The best performing model for {self.scenario} is {model_name} -> Pushing it to the CometML model registry")
+
         registry = ModelRegistry(model_name=model_name, scenario=self.scenario, tuned_or_not=self.tuned_or_not)
         registry.push_model(status=status.title(), version=version)
 
@@ -191,8 +187,6 @@ class Trainer:
 
         Args:
             model_names: the names of the models under consideration
-            version: the version of the registered model on CometML.
-            status:  the registered status of the model on CometML.
         """
         models_and_errors = {}
         for model_name in model_names:
@@ -211,6 +205,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     version = "1.0.0"
+    delete_best_model_from_previous_run(scenario=args.scenario)
 
     trainer = Trainer(
         scenario=args.scenario,
@@ -224,5 +219,6 @@ if __name__ == "__main__":
 
     best_model_name = best_model_for_scenario[args.scenario]
     trainer.register_model(model_name=best_model_name, version=version, status="production")
+
     # api.delete_registry_model(workspace=config.comet_workspace, registry_name=)
 

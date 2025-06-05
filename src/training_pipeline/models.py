@@ -73,8 +73,11 @@ def get_model(model_name: str) -> BaseModel | Lasso | LGBMRegressor | XGBRegress
         "xgboost": XGBRegressor,
         "base": BaseModel
     }
+
     if model_name.lower() in models_and_names.keys():
         return models_and_names[model_name.lower()]
+    else:
+        raise Exception("Provided improper model name")
 
 
 def load_local_model(directory: Path, model_name: str, scenario: str, tuned_or_not: str) -> Pipeline:

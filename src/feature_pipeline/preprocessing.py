@@ -69,7 +69,7 @@ class DataProcessor:
             result: bool = True if proportion_of_problem_rows >= 0.5 else False
             results.append(result)
 
-        return True if (False not in results) else False
+        return (False not in results) 
 
     def tie_ids_to_unique_coordinates(self, data: pd.DataFrame, threshold: int = 10_000_000) -> bool:
         """
@@ -88,7 +88,7 @@ class DataProcessor:
             bool: whether the dataset is deemed to be large enough to trigger the above condition 
         """
         assert not self.for_inference
-        return True if len(data) > threshold else False
+        return len(data) > threshold 
 
     def make_training_data(self, geocode: bool) -> list[pd.DataFrame] | tuple[pd.DataFrame, pd.DataFrame]:
         """
@@ -480,7 +480,7 @@ class DataProcessor:
             ].sort_values(by=[f"{scenario}_hour"])
 
             cutoff_indexer = CutoffIndexer(ts_data=ts_per_station, input_seq_len=input_seq_len, step_size=step_size)
-            use_standard_cutoff_indexer = cutoff_indexer.use_standard_cutoff_indexer()
+            use_standard_cutoff_indexer: bool = cutoff_indexer.use_standard_cutoff_indexer()
             indices = cutoff_indexer.indices
             num_indices = len(indices) 
 

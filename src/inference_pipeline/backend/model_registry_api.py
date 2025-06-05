@@ -1,6 +1,7 @@
 """
 This module contains all the code that allows interaction with CometML's model registry.
 """
+from typing import Any
 from pathlib import Path
 
 from loguru import logger
@@ -49,13 +50,16 @@ class ModelRegistry:
         experiment = ExistingExperiment(api_key=running_experiment.api_key, experiment_key=running_experiment.id)
 
         logger.info("Logging model to Comet ML")
-        registered_name = self._set_registered_name()
 
-        model_file = LOCAL_SAVE_DIR/f"{registered_name}.pkl"
-        _ = experiment.log_model(name=registered_name, file_or_folder=str(model_file))
+        registered_name = self._set_registered_name()
+        model_file_name: Path = LOCAL_SAVE_DIR/f"{registered_name}.pkl"
+        _ = experiment.log_model(name=registered_name, file_or_folder=str(model_file_name))
+
         logger.success(f"Finished logging the {self.model_name} model")
 
         logger.info(f'Pushing version {version} of the model to the registry under "{status.title()}"...')
+        breakpoint()
+
         experiment.register_model(model_name=registered_name, status=status, version=version)
 
     def download_latest_model(self, unzip: bool) -> Pipeline:
@@ -90,3 +94,4 @@ class ModelRegistry:
         )
         
         return model
+

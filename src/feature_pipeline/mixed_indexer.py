@@ -7,8 +7,8 @@ import numpy as np
 import pandas as pd
 
 from src.setup.config import config
-from src.setup.paths import MIXED_INDEXER, CLEANED_DATA, MIXED_INDEXER, ROUNDING_INDEXER
 from src.feature_pipeline.feature_engineering import ReverseGeocoder
+from src.setup.paths import MIXED_INDEXER, CLEANED_DATA, ROUNDING_INDEXER
 from src.feature_pipeline.rounding_indexer import add_column_of_rounded_coordinates
 
 
@@ -33,7 +33,7 @@ def find_rows_with_either_missing_ids_or_names(scenario: str, data: pd.DataFrame
     only_missing_names = station_names.isnull() & station_ids.notnull()
 
     target_condition = only_missing_id | only_missing_names
-    return True if target_condition.sum() > 0 else False
+    return target_condition.sum() > 0 
 
 
 def find_rows_with_missing_ids_and_names(
@@ -59,8 +59,8 @@ def find_rows_with_missing_ids_and_names(
 
     missing_station_ids = data[f"{scenario}_station_id"].isnull()
     missing_station_names = data[f"{scenario}_station_name"].isnull()
-    mask_of_problem_rows = missing_station_ids & missing_station_names
-    problem_data = data.loc[mask_of_problem_rows, :]
+    boolean_mask_of_problem_rows = missing_station_ids & missing_station_names
+    problem_data = data.loc[boolean_mask_of_problem_rows, :]
 
     logger.warning(f"{len(problem_data)} rows{"" if first_time else " still"} have missing station names and IDs.")
     return problem_data.index if return_indices else problem_data
@@ -116,15 +116,15 @@ def match_names_and_ids_by_station_proximity(scenario: str, data: pd.DataFrame) 
     contains a missing station ID or a station name (not both). This will have occurred due to a change in the data'
 
     logger.warning("Starting the matching process...")
-    problem_row_indices = find_rows_with_missing_ids_and_names(
+    problem_row_indices: list[int] = find_rows_with_missing_ids_and_names(
         data=data, 
         scenario=scenario, 
         first_time=True,
         return_indices=True
     )
 
-    complete_rows_and_their_original_coordinates = find_rows_with_known_ids_and_names(scenario=scenario, data=data)
-    coordinates_of_complete_rows = np.array(list(complete_rows_and_their_original_coordinates.values()))
+    complete_rows_and_their_original_coordinates: dict[int, tuple[float, float]] = find_rows_with_known_ids_and_names(scenario=scenario, data=data)
+    coordinates_of_complete_rows = np.array(  list(complete_rows_and_their_original_coordinates.values())  )
     rounded_coordinates_of_complete_rows = np.round(coordinates_of_complete_rows, decimals=4)
 
     latitudes_index = data.columns.get_loc(f"{scenario}_lat")
@@ -363,3 +363,4 @@ def run_mixed_indexer(scenario: str, data: pd.DataFrame, delete_leftover_rows: b
             all_data.to_parquet(path=CLEANED_DATA / f"fully_cleaned_and_indexed_{scenario}_data.parquet")
 
         return all_data
+
