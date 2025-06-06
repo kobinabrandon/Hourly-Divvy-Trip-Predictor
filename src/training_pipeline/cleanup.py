@@ -34,7 +34,7 @@ def identify_best_model(scenario: str, models_and_errors: dict[str, float]) -> s
         if len(best_model_name) > 0:  
             break
         elif models_and_errors[ (model_name, tuned_or_not) ] == smallest_test_error:
-           best_model_name += model_name + f"_{tuned_or_not}" 
+            best_model_name += model_name + f"_{tuned_or_not}" 
 
     if len(best_model_name) == 0:
         raise Exception(f"Unable to identify model with best performance for {scenario}s. Did any models train in the first place?")

@@ -61,7 +61,9 @@ def train(scenario: str, model_name: str, tune: bool, tuning_trials: int | None)
     it will go on to build one, tune its hyperparameters, save the resulting model.
 
     Args:
-        scenario (str): a string indicating whether we are training data on the starts or ends of trips. The only accepted answers are "start" and "end"
+        scenario (str): indicating whether training data on the starts or ends of trips. 
+                        The only accepted answers are "start" and "end"
+
         model_name (str): the name of the model to be trained
         tune (bool | None, optional): whether to tune hyperparameters or not.
         hyperparameter_trials (int | None): the number of times that we will try to optimize the hyperparameters
@@ -164,7 +166,7 @@ def train_all_models(tuning_trials: int = 3):
             for model_name in config.model_names:
                 error = train(scenario=scenario, model_name=model_name, tune=tune_or_not, tuning_trials=tuning_trials)
                 tuning_indicator: str = "untuned" if not tune_or_not else "tuned"
-                models_and_errors[ (model_name, tuning_indicator)] = error
+                models_and_errors[ (model_name, tuning_indicator) ] = error
 
         best_model_name: str = identify_best_model(scenario=scenario, models_and_errors=models_and_errors)
         register_model(scenario=scenario, model_name=best_model_name, status="production")
@@ -172,3 +174,4 @@ def train_all_models(tuning_trials: int = 3):
 
 if __name__ == "__main__":
     train_all_models()
+

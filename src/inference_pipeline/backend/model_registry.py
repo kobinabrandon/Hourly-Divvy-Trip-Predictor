@@ -30,11 +30,12 @@ def push_model(scenario: str, model_name: str, status: str, version: str) -> Non
     experiment = ExistingExperiment(api_key=running_experiment.api_key, experiment_key=running_experiment.id)
 
     logger.info("Logging model to Comet ML")
-    tuned = "_untuned" in model_name
+    tuned = "_tuned" in model_name
+    corrected_model_name: str = model_name.replace("_tuned" if tuned else "_untuned", "")  # Remove the suffix "_tuned" or "_untuned" that was added when we identified the best model 
 
     full_model_name = get_full_model_name(
         scenario=scenario, 
-        model_name=model_name.replace("_untuned" if tuned else "_tuned", ""), 
+        model_name=corrected_model_name,
         tuned=tuned
     )
 
