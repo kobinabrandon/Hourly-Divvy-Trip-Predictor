@@ -112,4 +112,3 @@ def get_registered_model_version(full_model_name: str) -> str:
     model_versions = model_details["versions"][0]["version"]
     return model_versions
 
-

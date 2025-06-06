@@ -21,7 +21,7 @@ class GeneralConfig(BaseSettings):
     )
 
     years: list[Year] = [
-        Year(value=2025, offset=4)
+        Year(value=2025, offset=0)
     ]
 
     email: str

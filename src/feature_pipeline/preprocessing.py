@@ -1,3 +1,4 @@
+import os
 import json 
 from pathlib import Path
 
@@ -102,20 +103,22 @@ class DataProcessor:
             list[pd.DataFrame]: a list containing the datasets for the starts and ends of trips.
         """
         start_ts, end_ts = self.make_time_series()
-        ts_data_per_scenario = {"start": start_ts, "end": end_ts}
+        ts_data_per_scenario = { "start": start_ts, "end": end_ts }
 
         training_sets: list[pd.DataFrame] = []
         for scenario in ts_data_per_scenario.keys():
-            if not Path(TRAINING_DATA/f"{scenario}s.parquet").is_file():
-                training_data: pd.DataFrame = self.transform_ts_into_training_data(
-                    ts_data=ts_data_per_scenario[scenario],
-                    geocode=geocode,
-                    scenario=scenario, input_seq_len=config.n_features, step_size=1)
+            path_to_training_data = TRAINING_DATA.joinpath(f"{scenario}s.parquet")
 
-                training_sets.append(training_data)
+            if path_to_training_data.is_file():
+                logger.warning(f"Found an existing version of the training data for {config.displayed_scenario_names[scenario]} -> Deleting it")
+                os.remove(path_to_training_data)
 
-            else:
-                logger.success(f"You already have training data for the {config.displayed_scenario_names[scenario]}")  
+            training_data: pd.DataFrame = self.transform_ts_into_training_data(
+                ts_data=ts_data_per_scenario[scenario],
+                geocode=geocode,
+                scenario=scenario, input_seq_len=config.n_features, step_size=1)
+
+            training_sets.append(training_data)
             
         return training_sets
 
@@ -148,22 +151,22 @@ class DataProcessor:
 
         if self.use_custom_station_indexing(scenarios=self.scenarios, data=self.data) \
         and self.tie_ids_to_unique_coordinates(data=self.data):
-            cleaned_data_file_path = Path.joinpath(CLEANED_DATA, "data_with_newly_indexed_stations (rounded_indexer).parquet")
+            cleaned_data_file_path = CLEANED_DATA.joinpath("data_with_newly_indexed_stations (rounded_indexer).parquet")
 
         elif self.use_custom_station_indexing(scenarios=self.scenarios, data=self.data) \
         and not self.tie_ids_to_unique_coordinates(data=self.data):
-            cleaned_data_file_path = Path.joinpath(CLEANED_DATA, "data_with_newly_indexed_stations (mixed_indexer).parquet")
+            cleaned_data_file_path = CLEANED_DATA.joinpath("data_with_newly_indexed_stations (mixed_indexer).parquet")
 
         # Will think of a more elegant solution in due course. This only serves my current interests.
         elif self.for_inference:
-            cleaned_data_file_path = Path.joinpath(CLEANED_DATA, "partially_cleaned_data_for_inference.parquet")
+            cleaned_data_file_path = CLEANED_DATA.joinpath("partially_cleaned_data_for_inference.parquet")
 
         else:
             raise NotImplementedError(
                 "The majority of Divvy's IDs weren't numerical and valid during initial development."
             )
 
-        if not Path(cleaned_data_file_path).is_file():
+        if not cleaned_data_file_path.is_file():
 
             self.data["started_at"] = pd.to_datetime(self.data["started_at"], format="mixed")
             self.data["ended_at"] = pd.to_datetime(self.data["ended_at"], format="mixed")
@@ -656,5 +659,6 @@ class CutoffIndexer:
 if __name__ == "__main__":
     make_fundamental_paths()
     processor= DataProcessor(years=config.years, for_inference=False)
-    _ = processor.make_training_data(geocode=False) 
+    training_data = processor.make_training_data(geocode=False) 
+    breakpoint()
 
