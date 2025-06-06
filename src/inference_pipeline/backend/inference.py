@@ -10,7 +10,6 @@ import numpy as np
 import pandas as pd
 
 from loguru import logger
-from argparse import ArgumentParser
 
 from datetime import datetime, timedelta
 from sklearn.pipeline import Pipeline
@@ -21,7 +20,7 @@ from hsfs.feature_view import FeatureView
 from src.setup.config import config
 from src.setup.paths import ROUNDING_INDEXER, MIXED_INDEXER
 from src.feature_pipeline.preprocessing import DataProcessor
-from src.inference_pipeline.backend.feature_store_api import setup_feature_group, get_or_create_feature_view
+from src.inference_pipeline.backend.feature_store import setup_feature_group, get_or_create_feature_view
 
 
 def get_feature_group_for_time_series(scenario: str, primary_key: list[str]) -> FeatureGroup:

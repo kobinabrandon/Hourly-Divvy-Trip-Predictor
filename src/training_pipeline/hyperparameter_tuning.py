@@ -66,9 +66,9 @@ def sample_hyperparameters(
         raise NotImplementedError("This model has not been implemented")
 
 
-def optimise_hyperparameters(
+def tune_hyperparameters(
         model_fn: BaseModel | Lasso | LGBMRegressor | XGBRegressor,
-        hyperparameter_trials: int,
+        tuning_trials: int,
         experiment: Experiment,
         x: pd.DataFrame,
         y: pd.Series
@@ -79,7 +79,7 @@ def optimise_hyperparameters(
 
     Args:
         model_fn: the model architecture to be used
-        hyperparameter_trials: the number of optuna trials that will be run per mode scenario
+        tuning_trials: the number of optuna trials that will be run per mode scenario
         experiment: the CometML experiment object
         x: the dataframe of features
         y: the pandas series which contains the target variable
@@ -134,7 +134,7 @@ def optimise_hyperparameters(
     logger.info("Beginning hyperparameter search")
     sampler = TPESampler(seed=69)
     study = optuna.create_study(study_name="study", direction="minimize", sampler=sampler, pruner=MedianPruner())
-    study.optimize(func=objective, n_trials=hyperparameter_trials)
+    study.optimize(func=objective, n_trials=tuning_trials)
 
     # Get the dictionary of the best hyperparameters and the error that they produce
     best_hyperparams = study.best_params

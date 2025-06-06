@@ -3,22 +3,8 @@ training-data:
 	uv run src/feature_pipeline/preprocessing.py 
 
 # Model Training
-train-starts-untuned:
-	uv run src/training_pipeline/training.py --scenario start --models lasso lightgbm xgboost
-
-train-starts-tuned:
-	uv run src/training_pipeline/training.py --scenario start --models lasso lightgbm xgboost \
-	--tune_hyperparameters --hyperparameter_trials 5
-
-train-ends-untuned:
-	uv run src/training_pipeline/training.py --scenario end --models lasso lightgbm xgboost
-
-train-ends-tuned:
-	uv run src/training_pipeline/training.py --scenario end --models xgboost lasso lightgbm \
- 	--tune_hyperparameters --hyperparameter_trials 5
-
-train-all: train-starts-untuned train-ends-untuned train-starts-tuned train-ends-tuned
-
+train:
+	uv run src/training_pipeline/training.py 
 
 # Backfilling the Feature Store
 backfill-features:

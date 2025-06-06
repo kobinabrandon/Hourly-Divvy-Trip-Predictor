@@ -80,7 +80,7 @@ def get_model(model_name: str) -> BaseModel | Lasso | LGBMRegressor | XGBRegress
         raise Exception("Provided improper model name")
 
 
-def load_local_model(directory: Path, model_name: str, scenario: str, tuned_or_not: str) -> Pipeline:
+def load_local_model(directory: Path, model_name: str, scenario: str, tuned: str) -> Pipeline:
     """
     Allows for model objects that have been downloaded from the model registry, or created locally to be loaded
     and returned for inference or other purpose. It was important that the function be global and that it allow

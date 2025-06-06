@@ -5,10 +5,10 @@ feature and prediction data for the purpose of monitoring model performance insi
 the streamlit frontend.
 """
 import pandas as pd 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 
 from src.setup.config import config
-from src.inference_pipeline.backend.feature_store_api import setup_feature_group
+from src.inference_pipeline.backend.feature_store import setup_feature_group
 
 
 def load_predictions_and_historical_trips(

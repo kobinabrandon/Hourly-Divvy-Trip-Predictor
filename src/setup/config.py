@@ -1,7 +1,7 @@
 import pandas as pd 
 
+from dotenv import load_dotenv
 from datetime import datetime, UTC
-from dotenv import load_dotenv, find_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from src.setup.paths import PARENT_DIR
@@ -32,6 +32,7 @@ class GeneralConfig(BaseSettings):
     feature_group_version: int = 1
     feature_view_version: int = 1
 
+    model_names: list[str] = ["lasso", "lightgbm", "xgboost"]
     current_hour: datetime = pd.to_datetime(datetime.now(tz=UTC)).floor("H")
     displayed_scenario_names: dict[str, str] = {"start": "Departures", "end": "Arrivals"} 
 

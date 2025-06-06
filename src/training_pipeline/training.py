@@ -4,221 +4,171 @@ experiment tracking.
 """
 import pickle
 from pathlib import Path
-from argparse import ArgumentParser
 
 import pandas as pd
 from loguru import logger
 
+from comet_ml import Experiment
 from xgboost import XGBRegressor
-from comet_ml import Experiment, API
 from sklearn.metrics import mean_absolute_error
 from sklearn.pipeline import Pipeline, make_pipeline
 
 from src.setup.config import config
-from src.feature_pipeline.preprocessing import DataProcessor
 from src.training_pipeline.models import get_model
-from src.inference_pipeline.backend.model_registry_api import ModelRegistry
-from src.training_pipeline.hyperparameter_tuning import optimise_hyperparameters
+from src.feature_pipeline.preprocessing import DataProcessor
+from src.training_pipeline.hyperparameter_tuning import tune_hyperparameters
+from src.setup.paths import TRAINING_DATA, LOCAL_SAVE_DIR, make_fundamental_paths
+from src.inference_pipeline.backend.model_registry import push_model, get_full_model_name
 
 from src.training_pipeline.cleanup import (
-    gather_best_model_per_scenario, 
+    identify_best_model,
+    delete_prior_project_from_comet,
     delete_best_model_from_previous_run, 
 )
 
-from src.setup.paths import TRAINING_DATA, LOCAL_SAVE_DIR, make_fundamental_paths
 
 
-class Trainer:
-    def __init__(
-        self,
-        scenario: str,
-        hyperparameter_trials: int,
-        tune_hyperparameters: bool | None = True
-    ):
-        """
-        Args:
-            scenario (str): a string indicating whether we are training data on the starts or ends of trips.
-                            The only accepted answers are "start" and "end"
+def get_or_make_training_data(scenario: str) -> tuple[pd.DataFrame, pd.Series]:
+    """
+    Fetches or builds the training data for the starts or ends of trips.
 
-            tune_hyperparameters (bool | None, optional): whether to tune hyperparameters or not.
+    Returns:
+        pd.DataFrame: a tuple containing the training data's features and targets
+    """
+    assert scenario.lower() in ["start", "end"]
+    data_path = Path.joinpath(TRAINING_DATA, f"{scenario}s.parquet")
+    
+    if Path(data_path).is_file():
+        training_data: pd.DataFrame = pd.read_parquet(path=data_path)
+        logger.success(f"Fetched saved training data for {config.displayed_scenario_names[scenario].lower()}")
+    else:
+        logger.warning("No training data is storage. Creating the dataset will take a while.")
 
-            hyperparameter_trials (int | None): the number of times that we will try to optimize the hyperparameters
-        """
-        self.scenario: str = scenario
-        self.tune_hyperparameters: bool | None = tune_hyperparameters
-        self.hyperparameter_trials: int = hyperparameter_trials
-        self.tuned_or_not: str = "Tuned" if self.tune_hyperparameters else "Untuned"
-        make_fundamental_paths()  # Ensure that all the necessary directories exist.
+        processor = DataProcessor(years=config.years, for_inference=False)
+        training_sets = processor.make_training_data(geocode=False)
+        training_data = training_sets[0] if scenario.lower() == "start" else training_sets[1]
+        logger.success("Training data produced successfully")
+
+    target = training_data["trips_next_hour"]
+    features = training_data.drop("trips_next_hour", axis=1)
+    return features.sort_index(), target.sort_index()
 
 
-    @staticmethod
-    def delete_any_prior_project(delete_experiments: bool = True):
-        try:
-            api = API(api_key=config.comet_api_key)
-            logger.info("Deleting COMET project...")
+def train(scenario: str, model_name: str, tune: bool, tuning_trials: int | None) -> float:
+    """
+    The function first checks for the existence of the training data, and builds it if
+    it doesn't find it locally. Then it checks for a saved model. If it doesn't find a model,
+    it will go on to build one, tune its hyperparameters, save the resulting model.
 
-            _ = api.delete_project(
-                workspace=config.comet_workspace, 
-                project_name=config.comet_project_name, 
-                delete_experiments=delete_experiments
-            )
+    Args:
+        scenario (str): a string indicating whether we are training data on the starts or ends of trips. The only accepted answers are "start" and "end"
+        model_name (str): the name of the model to be trained
+        tune (bool | None, optional): whether to tune hyperparameters or not.
+        hyperparameter_trials (int | None): the number of times that we will try to optimize the hyperparameters
 
-        except Exception as error:
-            logger.error(error)
+    Returns:
+        float: the error of the chosen model on the test dataset.
+    """
+    model_fn: object = get_model(model_name=model_name)
+    features, target = get_or_make_training_data(scenario=scenario)
 
-    def get_or_make_training_data(self) -> tuple[pd.DataFrame, pd.Series]:
-        """
-        Fetches or builds the training data for the starts or ends of trips.
+    train_sample_size = int(0.9 * len(features))
+    x_train, x_test = features[:train_sample_size], features[train_sample_size:]
+    y_train, y_test = target[:train_sample_size], target[train_sample_size:]
 
-        Returns:
-            pd.DataFrame: a tuple containing the training data's features and targets
-        """
-        assert self.scenario.lower() in ["start", "end"]
-        data_path = Path.joinpath(TRAINING_DATA, f"{self.scenario}s.parquet")
-        
-        if Path(data_path).is_file():
-            training_data = pd.read_parquet(path=data_path)
-            logger.success(f"Fetched saved training data for {config.displayed_scenario_names[self.scenario].lower()}")
+    experiment = Experiment(
+        api_key=config.comet_api_key,
+        workspace=config.comet_workspace,
+        project_name=config.comet_project_name
+    )
+
+    experiment_name: str = get_full_model_name(scenario=scenario, model_name=model_name, tuned=tune) 
+    experiment.set_name(name=experiment_name)
+
+    if not tune:
+        logger.info("Using the default hyperparameters")
+
+        if model_name == "base":
+            pipeline = make_pipeline( model_fn(scenario=scenario) )
         else:
-            logger.warning("No training data is storage. Creating the dataset will take a while.")
-
-            processor = DataProcessor(years=config.years, for_inference=False)
-            training_sets = processor.make_training_data(geocode=False)
-            training_data = training_sets[0] if self.scenario.lower() == "start" else training_sets[1]
-            logger.success("Training data produced successfully")
-
-        target = training_data["trips_next_hour"]
-        features = training_data.drop("trips_next_hour", axis=1)
-        return features.sort_index(), target.sort_index()
-
-    def train(self, model_name: str) -> float:
-        """
-        The function first checks for the existence of the training data, and builds it if
-        it doesn't find it locally. Then it checks for a saved model. If it doesn't find a model,
-        it will go on to build one, tune its hyperparameters, save the resulting model.
-
-        Args:
-            model_name (str): the name of the model to be trained
-
-        Returns:
-            float: the error of the chosen model on the test dataset.
-        """
-        model_fn: object = get_model(model_name=model_name)
-        features, target = self.get_or_make_training_data()
-
-        train_sample_size = int(0.9 * len(features))
-        x_train, x_test = features[:train_sample_size], features[train_sample_size:]
-        y_train, y_test = target[:train_sample_size], target[train_sample_size:]
-
-        experiment = Experiment(
-            api_key=config.comet_api_key,
-            workspace=config.comet_workspace,
-            project_name=config.comet_project_name
-        )
-        
-        if not self.tune_hyperparameters:
-            logger.info("Using the default hyperparameters")
-            experiment.set_name(name=f"{model_name.title()}(Untuned) model for the {self.scenario}s of trips")
-
-            if model_name == "base":
-                pipeline = make_pipeline(
-                    model_fn(scenario=self.scenario)
-                )
+            if isinstance(model_fn, XGBRegressor):
+                pipeline = make_pipeline(model_fn)
             else:
-                if isinstance(model_fn, XGBRegressor):
-                    pipeline = make_pipeline(model_fn)
-                else:
-                    pipeline = make_pipeline(model_fn())
-        else:
-            experiment.set_name(name=f"{model_name.title()}(Tuned) model for the {self.scenario}s of trips")
-            logger.info(f"Tuning hyperparameters of the {model_name} model.")
+                pipeline = make_pipeline( model_fn() )
 
-            best_model_hyperparameters = optimise_hyperparameters(
-                model_fn=model_fn,
-                hyperparameter_trials=self.hyperparameter_trials,
-                experiment=experiment,
-                x=x_train,
-                y=y_train
-            )
+    else:
+        logger.info(f"Tuning hyperparameters of the {model_name} model.")
 
-            logger.success(f"Best model hyperparameters {best_model_hyperparameters}")
-            pipeline = make_pipeline(  model_fn(**best_model_hyperparameters)  )
+        best_model_hyperparameters = tune_hyperparameters(
+            model_fn=model_fn,
+            tuning_trials=tuning_trials,
+            experiment=experiment,
+            x=x_train,
+            y=y_train
+        )
 
-        logger.info("Fitting model...")
+        logger.success(f"Best model hyperparameters {best_model_hyperparameters}")
+        pipeline = make_pipeline(  model_fn(**best_model_hyperparameters)  )
 
-        pipeline.fit(X=x_train, y=y_train)
-        y_pred = pipeline.predict(x_test)
-        test_error = mean_absolute_error(y_true=y_test, y_pred=y_pred)
+    logger.info("Fitting model...")
 
-        self.save_model_locally(model_fn=pipeline, model_name=model_name)
-        experiment.log_metric(name="Test MAE", value=test_error)
-        experiment.end()
-        
-        return test_error
+    pipeline.fit(X=x_train, y=y_train)
+    y_pred = pipeline.predict(x_test)
+    test_error = mean_absolute_error(y_true=y_test, y_pred=y_pred)
 
-    def save_model_locally(self, model_fn: Pipeline, model_name: str):
-        """
-        Save the trained model locally as a .pkl file
-
-        Args:
-            model_fn (Pipeline): the model object to be stored
-            model_name (str): the name of the model to be saved
-        """
-        logger.success("Saving model to disk")
-
-        model_file_name = f"{model_name.title()} ({self.tuned_or_not} for {self.scenario}s).pkl"
-        with open(LOCAL_SAVE_DIR/model_file_name, mode="wb") as file:
-            pickle.dump(obj=model_fn, file=file)
+    save_model_locally(scenario=scenario, tuned=tune, model_fn=pipeline, model_name=model_name)
+    experiment.log_metric(name="Test MAE", value=test_error)
+    experiment.end()
+    
+    return test_error
 
 
-    def register_model(self, model_name: str, version: str, status: str):
+def register_model(scenario: str, model_name: str, status: str, version: str = "1.0.0"):
 
-        assert status.lower() in ["staging", "production"], 'The status must be either "staging" or "production"'
-        logger.info(f"The best performing model for {self.scenario} is {model_name} -> Pushing it to the CometML model registry")
-
-        registry = ModelRegistry(model_name=model_name, scenario=self.scenario, tuned_or_not=self.tuned_or_not)
-        registry.push_model(status=status.title(), version=version)
+    assert status.lower() in ["staging", "production"], 'The status must be either "staging" or "production"'
+    logger.info(f"The best performing model for {scenario} is {model_name} -> Pushing it to the CometML model registry")
+    push_model(scenario=scenario, model_name=model_name, status=status.title(), version=version)
 
 
-    def train_and_register_models(self, model_names: list[str]) -> dict[str, float]:
-        """
-        Train the named models, identify the best performer (on the test data) and
-        register it to the CometML model registry.
+def save_model_locally(scenario, model_fn: Pipeline, model_name: str, tuned: bool):
+    """
+    Save the trained model locally as a .pkl file
 
-        Args:
-            model_names: the names of the models under consideration
-        """
-        models_and_errors = {}
-        for model_name in model_names:
-            test_error = self.train(model_name=model_name)
-            models_and_errors[model_name] = test_error
+    Args:
+        model_fn (Pipeline): the model object to be stored
+        model_name (str): the name of the model to be saved
+    """
+    logger.success("Saving model to disk")
 
-        return models_and_errors
+    model_file_name = f"{model_name.title()} ( {"Tuned" if tuned else "Untuned"} for {scenario}s ).pkl"
+    with open(LOCAL_SAVE_DIR/model_file_name, mode="wb") as file:
+        pickle.dump(obj=model_fn, file=file)
+
+
+def train_all_models(tuning_trials: int = 3):
+    """
+    Train the named models, identify the best performer (on the test data) and
+    register it to the CometML model registry.
+
+    Args:
+        tuning_trials: the number of tuning trials 
+    """
+    make_fundamental_paths()  # Ensure that all the necessary directories exist.
+    delete_prior_project_from_comet() 
+
+    for scenario in ["start", "end"]:
+        models_and_errors: dict[tuple[str, str], float] = {}
+        delete_best_model_from_previous_run(scenario=scenario)
+
+        for tune_or_not in [False, True]:
+            for model_name in config.model_names:
+                error = train(scenario=scenario, model_name=model_name, tune=tune_or_not, tuning_trials=tuning_trials)
+                tuning_indicator: str = "untuned" if not tune_or_not else "tuned"
+                models_and_errors[ (model_name, tuning_indicator)] = error
+
+        best_model_name: str = identify_best_model(scenario=scenario, models_and_errors=models_and_errors)
+        register_model(scenario=scenario, model_name=best_model_name, status="production")
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser()
-    _ = parser.add_argument("--scenario", type=str)
-    _ = parser.add_argument("--models", type=str, nargs="+", required=True)
-    _ = parser.add_argument("--tune_hyperparameters", action="store_true")
-    _ = parser.add_argument("--hyperparameter_trials", type=int, default=15)
-    args = parser.parse_args()
-
-    version = "1.0.0"
-    delete_best_model_from_previous_run(scenario=args.scenario)
-
-    trainer = Trainer(
-        scenario=args.scenario,
-        tune_hyperparameters=args.tune_hyperparameters,
-        hyperparameter_trials=args.hyperparameter_trials
-    )
-
-    trainer.delete_any_prior_project()
-    models_and_errors = trainer.train_and_register_models(model_names=args.models)
-    best_model_for_scenario: dict[str, str] = gather_best_model_per_scenario(scenario=args.scenario, models_and_errors=models_and_errors)
-
-    best_model_name = best_model_for_scenario[args.scenario]
-    trainer.register_model(model_name=best_model_name, version=version, status="production")
-
-    # api.delete_registry_model(workspace=config.comet_workspace, registry_name=)
-
+    train_all_models()

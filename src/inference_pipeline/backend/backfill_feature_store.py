@@ -16,8 +16,8 @@ from src.inference_pipeline.backend.inference import (
     get_model_predictions
 )
 
-from src.inference_pipeline.backend.feature_store_api import setup_feature_group
-from src.inference_pipeline.backend.model_registry_api import ModelRegistry
+from src.inference_pipeline.backend.model_registry import ModelRegistry
+from src.inference_pipeline.backend.feature_store import setup_feature_group
 
 
 def backfill_features(scenario: str) -> None:
