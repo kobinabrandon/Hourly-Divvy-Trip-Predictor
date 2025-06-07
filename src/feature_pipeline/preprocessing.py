@@ -1,11 +1,13 @@
 import os
 import json 
+import requests
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from loguru import logger
+from datetime import datetime
 
 from src.setup.config import config
 from src.feature_pipeline.mixed_indexer import run_mixed_indexer
@@ -21,6 +23,38 @@ from src.setup.paths import (
     TIME_SERIES_DATA, 
     make_fundamental_paths
 )
+
+
+def get_proper_scenario_name(scenario: str) -> str:
+    return config.displayed_scenario_names[scenario].lower()
+
+
+def cleaned_data_needs_update(scenario: str, path: Path, year_of_interest: Year) -> bool:
+    cleaned_data: pd.DataFrame = pd.read_parquet(path=path)
+    most_recent_date_in_data: pd.Series = cleaned_data[f"{scenario}ed_at"][-1]
+    data_is_from_at_least_a_month_ago: bool = most_recent_date_in_data.month() < datetime.now().month() 
+
+    new_data_url: str = f"https://divvy-tripdata.s3.amazonaws.com/{year_of_interest}{most_recent_date_in_data.month():02d}-divvy-tripdata.zip"
+    new_data_is_available: bool = requests.get(new_data_url).status_code == 200
+    proper_scenario_name: str = get_proper_scenario_name(scenario=scenario)
+
+    if not data_is_from_at_least_a_month_ago:
+        logger.info(f"The cleaned data for {proper_scenario_name} is up to date")
+        return False 
+
+    elif (data_is_from_at_least_a_month_ago and new_data_is_available):
+        logger.info(f"The cleaned data for {proper_scenario_name} is out of date, and new data is available")
+        return True
+
+    else: 
+        logger.info(f"The cleaned data for {proper_scenario_name} is out of date, but new data is unavailable")
+        return False 
+            
+
+    
+
+
+
 
 
 class DataProcessor:
@@ -130,6 +164,10 @@ class DataProcessor:
             tuple[pd.DataFrame, pd.DataFrame]: the time series datasets for departures and arrivals respectively.
         """
         logger.info("Cleaning downloaded data...")
+
+        # if cleaned_data_needs_update(scenario=self.scenario, path: Path, year_of_interest: Year)
+
+
         self.data = self.clean()
 
         start_df_columns = ["started_at", "start_lat", "start_lng", "start_station_id"]
@@ -149,12 +187,13 @@ class DataProcessor:
 
     def clean(self, save: bool = True) -> pd.DataFrame:
 
-        if self.use_custom_station_indexing(scenarios=self.scenarios, data=self.data) \
-        and self.tie_ids_to_unique_coordinates(data=self.data):
+        tie_ids_to_unique_coordinates: bool = self.tie_ids_to_unique_coordinates(data=self.data)
+        using_custom_station_indexing: bool = self.use_custom_station_indexing(scenarios=self.scenarios, data=self.data)  
+
+        if using_custom_station_indexing and tie_ids_to_unique_coordinates:
             cleaned_data_file_path = CLEANED_DATA.joinpath("data_with_newly_indexed_stations (rounded_indexer).parquet")
 
-        elif self.use_custom_station_indexing(scenarios=self.scenarios, data=self.data) \
-        and not self.tie_ids_to_unique_coordinates(data=self.data):
+        elif using_custom_station_indexing and not self.tie_ids_to_unique_coordinates(data=self.data):
             cleaned_data_file_path = CLEANED_DATA.joinpath("data_with_newly_indexed_stations (mixed_indexer).parquet")
 
         # Will think of a more elegant solution in due course. This only serves my current interests.
@@ -171,7 +210,7 @@ class DataProcessor:
             self.data["started_at"] = pd.to_datetime(self.data["started_at"], format="mixed")
             self.data["ended_at"] = pd.to_datetime(self.data["ended_at"], format="mixed")
 
-            def _delete_rows_with_missing_station_names_and_coordinates() -> pd.DataFrame:
+            def delete_rows_with_missing_station_names_and_coordinates() -> pd.DataFrame:
                 """
                 There are rows with missing latitude and longitude values for the various
                 stations. If any of these rows have available station names, then geocoding
@@ -204,7 +243,7 @@ class DataProcessor:
 
                 return self.data
 
-            self.data = _delete_rows_with_missing_station_names_and_coordinates()
+            self.data = delete_rows_with_missing_station_names_and_coordinates()
             features_to_drop = ["ride_id", "rideable_type", "member_casual"]
 
             if self.use_custom_station_indexing(data=self.data, scenarios=self.scenarios) and \
@@ -222,6 +261,7 @@ class DataProcessor:
             return self.data
 
         else:
+            breakpoint()
             logger.success("There is already some cleaned data. Fetching it...")
             return pd.read_parquet(path=cleaned_data_file_path)
 
@@ -562,8 +602,8 @@ class CutoffIndexer:
         self.stop_position: int = len(ts_data) - 1
 
         self.use_standard_indexer: bool = self.use_standard_cutoff_indexer()
-        self.indices: list[tuple[int, int, int]] = self._get_cutoff_indices()
-        self.indices = self._get_cutoff_indices()
+        self.indices: list[tuple[int, int, int]] = self.get_cutoff_indices()
+        self.indices = self.get_cutoff_indices()
 
     def use_standard_cutoff_indexer(self) -> bool:
         """
@@ -578,7 +618,7 @@ class CutoffIndexer:
         stop_position = len(self.ts_data) - 1  
         return True if stop_position >= self.input_seq_len + 1 else False
 
-    def _get_cutoff_indices(self) -> list[tuple[int, int, int]]:
+    def get_cutoff_indices(self) -> list[tuple[int, int, int]]:
         """
         
 
@@ -586,7 +626,7 @@ class CutoffIndexer:
             list: the list of cutoff indices
         """
         if self.use_standard_indexer:
-            indices = self._standard_cutoff_indexer(
+            indices = self.run_standard_cutoff_indexer(
                 first_index=0, 
                 mid_index=self.input_seq_len, 
                 last_index=self.input_seq_len+1
@@ -595,13 +635,13 @@ class CutoffIndexer:
             return indices
             
         elif not self.use_standard_indexer and len(self.ts_data) >= 2:
-            indices = self._modified_cutoff_indexer(first_index=0, mid_index=1, last_index=2)
+            indices = self.run_modified_cutoff_indexer(first_index=0, mid_index=1, last_index=2)
             return indices
 
         elif not self.use_standard_indexer and len(self.ts_data) == 1:
             return [self.ts_data.index[0]]
 
-    def _modified_cutoff_indexer(self, first_index: int, mid_index: int, last_index: int) -> list[tuple[int, int, int]]:
+    def run_modified_cutoff_indexer(self, first_index: int, mid_index: int, last_index: int) -> list[tuple[int, int, int]]:
         """
         A modified version of the standard indexer, which is meant to deal with a specific problem that emerges when
         the given station's time series data has only two rows.
@@ -624,7 +664,7 @@ class CutoffIndexer:
 
         return indices
 
-    def _standard_cutoff_indexer(self, first_index: int, mid_index: int, last_index: int) -> list[tuple[int, int, int]]:
+    def run_standard_cutoff_indexer(self, first_index: int, mid_index: int, last_index: int) -> list[tuple[int, int, int]]:
         """
         Starts by taking a certain number of rows of a given dataframe as an input, and the
         indices of the row on which the selected rows start and end. These will be placed
@@ -660,5 +700,4 @@ if __name__ == "__main__":
     make_fundamental_paths()
     processor= DataProcessor(years=config.years, for_inference=False)
     training_data = processor.make_training_data(geocode=False) 
-    breakpoint()
 

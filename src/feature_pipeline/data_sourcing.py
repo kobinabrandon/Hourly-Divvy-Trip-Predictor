@@ -64,8 +64,8 @@ def download_file_if_needed(
                     logger.error(f"File not found on remote server. Status code: {response.status_code}")
                 else:
                     file_name = zipfile_name[:-4]  # Remove ".zip" from the name of the zipfile
-                    folder_path = Path.joinpath(RAW_DATA_DIR, file_name)
-                    zipfile_path = Path.joinpath(RAW_DATA_DIR, zipfile_name)
+                    folder_path = RAW_DATA_DIR.joinpath(file_name)
+                    zipfile_path = RAW_DATA_DIR.joinpath(zipfile_name)
 
                     # Write the zipfile to the disk
                     with open(file=zipfile_path, mode="wb") as zipfile:
@@ -105,8 +105,8 @@ def load_raw_data(years: list[Year]) -> pd.DataFrame:
     Yields:
         Iterator[pd.DataFrame]: the requested datasets.
     """
-    make_fundamental_paths()
     data = pd.DataFrame()
+    make_fundamental_paths()
 
     for year in years:
         is_current_year = True if year.value == dt.now().year else False
