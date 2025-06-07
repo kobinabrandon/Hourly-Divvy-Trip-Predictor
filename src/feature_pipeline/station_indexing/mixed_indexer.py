@@ -36,12 +36,7 @@ def find_rows_with_either_missing_ids_or_names(scenario: str, data: pd.DataFrame
     return target_condition.sum() > 0 
 
 
-def find_rows_with_missing_ids_and_names(
-    data: pd.DataFrame, 
-    scenario: str, 
-    first_time: bool, 
-    return_indices: bool
-    ) -> list[int]:
+def find_rows_with_missing_ids_and_names(scenario: str, data: pd.DataFrame, first_time: bool, return_indices: bool) -> list[int]:
     """
     Search for rows with both IDs and names missing.
 

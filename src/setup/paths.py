@@ -4,27 +4,30 @@ from pathlib import Path
 
 PARENT_DIR = Path("_file_").parent.resolve()
 
-IMAGES_DIR = Path.joinpath(PARENT_DIR, "images")
-DATA_DIR = Path.joinpath(PARENT_DIR, "data")
+IMAGES_DIR = PARENT_DIR.joinpath("images")
+DATA_DIR = PARENT_DIR.joinpath("data")
 
-RAW_DATA_DIR = DATA_DIR/"raw"
+RAW_DATA_DIR = DATA_DIR.joinpath("raw")
 
-MODELS_DIR = PARENT_DIR/"models"
-LOCAL_SAVE_DIR = MODELS_DIR/"locally_created"
-COMET_SAVE_DIR = MODELS_DIR/"comet_downloads"
+MODELS_DIR = PARENT_DIR.joinpath("models")
+LOCAL_SAVE_DIR = MODELS_DIR.joinpath("locally_created")
+COMET_SAVE_DIR = MODELS_DIR.joinpath("comet_downloads")
 
-PARQUETS = RAW_DATA_DIR/"Parquets"
+PARQUETS = RAW_DATA_DIR.joinpath("Parquets")
 
-CLEANED_DATA = DATA_DIR/"cleaned"
-TRANSFORMED_DATA = DATA_DIR/"transformed"
-GEOGRAPHICAL_DATA = DATA_DIR/"geographical"
+CLEANED_DATA = DATA_DIR.joinpath("cleaned")
+TRANSFORMED_DATA = DATA_DIR.joinpath("transformed")
+GEOGRAPHICAL_DATA = DATA_DIR.joinpath("geographical")
 
-ROUNDING_INDEXER = GEOGRAPHICAL_DATA / "rounding_indexer"
-MIXED_INDEXER = GEOGRAPHICAL_DATA / "mixed_indexer"
+ROUNDING_INDEXER = GEOGRAPHICAL_DATA.joinpath("rounding_indexer")
+MIXED_INDEXER = GEOGRAPHICAL_DATA.joinpath("mixed_indexer")
 
-TIME_SERIES_DATA = TRANSFORMED_DATA/"time_series"
-TRAINING_DATA = TRANSFORMED_DATA/"training_data"
-INFERENCE_DATA = TRANSFORMED_DATA/"inference"
+TIME_SERIES_DATA = TRANSFORMED_DATA.joinpath("time_series")
+TRAINING_DATA = TRANSFORMED_DATA.joinpath("training_data")
+INFERENCE_DATA = TRANSFORMED_DATA.joinpath("inference")
+
+START_TS_PATH = TIME_SERIES_DATA.joinpath("start_ts.parquet")
+END_TS_PATH = TIME_SERIES_DATA.joinpath("end_ts.parquet")
 
 
 def make_fundamental_paths() -> None:
