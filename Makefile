@@ -1,6 +1,6 @@
 # Preprocessing
 training-data:
-	uv run src/feature_pipeline/preprocessing.py 
+	uv run src/feature_pipeline/preprocessing/core.py 
 
 # Model Training
 train:

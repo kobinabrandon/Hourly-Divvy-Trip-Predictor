@@ -11,8 +11,8 @@ import pandas as pd
 
 from loguru import logger
 
-from datetime import datetime, timedelta
 from sklearn.pipeline import Pipeline
+from datetime import datetime, timedelta
 
 from hsfs.feature_group import FeatureGroup
 from hsfs.feature_view import FeatureView

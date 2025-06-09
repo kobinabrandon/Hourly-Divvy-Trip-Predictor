@@ -48,3 +48,7 @@ class GeneralConfig(BaseSettings):
 
 config = GeneralConfig()
 
+
+def get_proper_scenario_name(scenario: str) -> str:
+    return config.displayed_scenario_names[scenario].lower()
+

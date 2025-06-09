@@ -9,7 +9,7 @@ import pandas as pd
 from src.setup.config import config
 from src.feature_pipeline.feature_engineering import ReverseGeocoder
 from src.setup.paths import MIXED_INDEXER, CLEANED_DATA, ROUNDING_INDEXER
-from src.feature_pipeline.rounding_indexer import add_column_of_rounded_coordinates
+from src.feature_pipeline.preprocessing.station_indexing.rounding_indexer import add_column_of_rounded_coordinates
 
 
 def find_rows_with_either_missing_ids_or_names(scenario: str, data: pd.DataFrame) -> bool:

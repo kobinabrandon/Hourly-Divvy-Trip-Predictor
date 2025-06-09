@@ -13,15 +13,27 @@ class CutoffIndexer:
             input_seq_len (int): the number of rows to be considered at any one time
             step_size (int): how many rows down we move as we repeat the process
         """
-
-        self.ts_data: pd.DataFrame = ts_data
         self.step_size: int = step_size
+        self.ts_data: pd.DataFrame = ts_data
         self.input_seq_len: int = input_seq_len
         self.stop_position: int = len(ts_data) - 1
 
+        self.indices = self.get_cutoff_indices()
         self.use_standard_indexer: bool = self.use_standard_cutoff_indexer()
         self.indices: list[tuple[int, int, int]] = self.get_cutoff_indices()
-        self.indices = self.get_cutoff_indices()
+
+    def use_standard_cutoff_indexer(self) -> bool:
+        """
+        Determines whether the standard cutoff indexer is to be used, based on the number of rows 
+        in the time series data. In particular, the function checks whether the input sequence
+        length is no more than the length of the data. This condition is required for the standard
+        indexer to be used in the first place.
+
+        Returns:
+            bool: whether to use the standard indexer or not.
+        """
+        stop_position = len(self.ts_data) - 1  
+        return True if stop_position >= self.input_seq_len + 1 else False
 
     def get_cutoff_indices(self) -> list[tuple[int, int, int]]:
         """
