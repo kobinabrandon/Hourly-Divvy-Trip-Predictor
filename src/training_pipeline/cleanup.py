@@ -25,7 +25,7 @@ def delete_prior_project_from_comet(delete_experiments: bool = True):
 def identify_best_model(scenario: str, models_and_errors: dict[str, float]) -> str: 
 
     best_model_name = "" 
-    smallest_test_error = min(models_and_errors.values())
+    smallest_test_error: float = min(models_and_errors.values())
 
     for (model_name, tuned_or_not) in models_and_errors.keys():
         # Stop the loop if a model with the minimum error has been identified. This prevents the 

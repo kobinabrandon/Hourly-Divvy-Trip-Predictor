@@ -19,7 +19,6 @@ class CutoffIndexer:
         self.stop_position: int = len(ts_data) - 1
 
         self.indices = self.get_cutoff_indices()
-        self.use_standard_indexer: bool = self.use_standard_cutoff_indexer()
         self.indices: list[tuple[int, int, int]] = self.get_cutoff_indices()
 
     def use_standard_cutoff_indexer(self) -> bool:
@@ -40,7 +39,7 @@ class CutoffIndexer:
         Returns:
             list: the list of cutoff indices
         """
-        if self.use_standard_indexer:
+        if self.use_standard_cutoff_indexer():
             indices = self.run_standard_cutoff_indexer(
                 first_index=0, 
                 mid_index=self.input_seq_len, 
@@ -49,11 +48,11 @@ class CutoffIndexer:
 
             return indices
             
-        elif not self.use_standard_indexer and len(self.ts_data) >= 2:
+        elif not self.use_standard_cutoff_indexer() and len(self.ts_data) >= 2:
             indices = self.run_modified_cutoff_indexer(first_index=0, mid_index=1, last_index=2)
             return indices
 
-        elif not self.use_standard_indexer and len(self.ts_data) == 1:
+        elif not self.use_standard_cutoff_indexer() and len(self.ts_data) == 1:
             return [self.ts_data.index[0]]
 
     def run_modified_cutoff_indexer(self, first_index: int, mid_index: int, last_index: int) -> list[tuple[int, int, int]]:

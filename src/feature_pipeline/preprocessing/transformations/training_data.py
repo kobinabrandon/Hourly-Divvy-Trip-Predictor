@@ -6,8 +6,8 @@ from loguru import logger
 from src.setup.config import get_proper_scenario_name
 from src.setup.paths import TRAINING_DATA, INFERENCE_DATA 
 from src.feature_pipeline.feature_engineering import finish_feature_engineering
-
 from src.feature_pipeline.preprocessing.transformations.time_series.cutoffs import CutoffIndexer
+
 
 def transform_ts_into_training_data(
         scenario: str,
@@ -34,7 +34,7 @@ def transform_ts_into_training_data(
         ts_data = ts_data.drop("timestamp", axis=1)
 
     # Ensure first that these are the columns of the chosen data set (and they are listed in this order)
-    assert set(ts_data.columns) == set(f"{scenario}_hour", f"{scenario}_station_id", "trips")
+    assert set(ts_data.columns) == {f"{scenario}_hour", f"{scenario}_station_id", "trips"}
 
     features = pd.DataFrame()
     targets = pd.DataFrame()
@@ -113,6 +113,4 @@ def transform_ts_into_training_data(
     training_data.to_parquet(final_data_path)
 
     return training_data
-
-
 

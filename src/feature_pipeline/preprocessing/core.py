@@ -1,12 +1,15 @@
 import os
 import pandas as pd
+from pathlib import Path
 from loguru import logger
 
 from src.setup.config import config
+from src.setup.config import get_proper_scenario_name
 from src.feature_pipeline.data_sourcing import load_raw_data, Year
 from src.setup.paths import CLEANED_DATA, TRAINING_DATA, make_fundamental_paths
 
 from src.feature_pipeline.preprocessing.transformations.training_data import transform_ts_into_training_data
+from src.feature_pipeline.preprocessing.transformations.time_series.core import transform_cleaned_data_into_ts
 from src.feature_pipeline.preprocessing.cleaning import delete_rows_with_missing_station_names_and_coordinates
 from src.feature_pipeline.preprocessing.station_indexing.choice import check_if_we_use_custom_station_indexing, check_if_we_tie_ids_to_unique_coordinates 
 
@@ -35,16 +38,19 @@ def make_training_data(
 
     training_sets: list[pd.DataFrame] = []
     for scenario in ts_data_per_scenario.keys():
-        path_to_training_data = TRAINING_DATA.joinpath(f"{scenario}s.parquet")
+        path_to_training_data: Path = TRAINING_DATA.joinpath(f"{scenario}s.parquet")
 
         if path_to_training_data.is_file():
-            logger.warning(f"Found an existing version of the training data for {config.displayed_scenario_names[scenario]} -> Deleting it")
+            logger.warning(f"Deleting existing version of the training data for {get_proper_scenario_name(scenario=scenario)}")
             os.remove(path_to_training_data)
 
         training_data: pd.DataFrame = transform_ts_into_training_data(
             ts_data=ts_data_per_scenario[scenario],
+            input_seq_len=config.n_features, 
+            for_inference=for_inference,
+            scenario=scenario, 
             geocode=geocode,
-            scenario=scenario, input_seq_len=config.n_features, step_size=1)
+            step_size=1)
 
         training_sets.append(training_data)
         
@@ -62,9 +68,9 @@ def make_time_series(data: pd.DataFrame, for_inference: bool) -> tuple[pd.DataFr
 
     # if cleaned_data_needs_update(scenario=scenario, path: Path, year_of_interest: Year)
    
-    cleaned_data = clean(data=data, for_inference=for_inference)
-    using_custom_station_indexing: bool = check_if_we_use_custom_station_indexing(scenarios=["start", "end"]) 
-    tie_ids_to_unique_coordinates: bool = check_if_we_tie_ids_to_unique_coordinates(data=cleaned_data)
+    cleaned_data: pd.DataFrame = clean(data=data, for_inference=for_inference)
+    using_custom_station_indexing: bool = check_if_we_use_custom_station_indexing(data=cleaned_data, for_inference=for_inference) 
+    tie_ids_to_unique_coordinates: bool = check_if_we_tie_ids_to_unique_coordinates(data=cleaned_data, for_inference=for_inference)
 
     start_df_columns = ["started_at", "start_lat", "start_lng", "start_station_id"]
     end_df_columns = ["ended_at", "end_lat", "end_lng", "end_station_id"]
@@ -76,37 +82,48 @@ def make_time_series(data: pd.DataFrame, for_inference: bool) -> tuple[pd.DataFr
     start_df: pd.DataFrame = cleaned_data[start_df_columns]
     end_df: pd.DataFrame = cleaned_data[end_df_columns]
 
-    start_ts, end_ts = transform_cleaned_data_into_ts_data(start_df=start_df, end_df=end_df)
+    start_ts, end_ts = transform_cleaned_data_into_ts(
+        scenarios=["start", "end"],
+        cleaned_start_data=start_df, 
+        cleaned_end_data=end_df,
+        using_custom_station_indexing=using_custom_station_indexing, 
+        tie_ids_to_unique_coordinates=tie_ids_to_unique_coordinates,
+    )
     return start_ts, end_ts
+
 
 
 def clean(data: pd.DataFrame, for_inference: bool, save: bool = True) -> pd.DataFrame:
 
-    tie_ids_to_unique_coordinates: bool = check_if_we_tie_ids_to_unique_coordinates(data=data)
-    using_custom_station_indexing: bool = check_if_we_use_custom_station_indexing(data=data)  
+    tie_ids_to_unique_coordinates: bool = check_if_we_tie_ids_to_unique_coordinates(data=data, for_inference=for_inference)
+    using_custom_station_indexing: bool = check_if_we_use_custom_station_indexing(data=data, for_inference=for_inference)  
 
-    if using_custom_station_indexing and tie_ids_to_unique_coordinates:
-        cleaned_data_file_path = CLEANED_DATA.joinpath("data_with_newly_indexed_stations (rounded_indexer).parquet")
-
-    elif using_custom_station_indexing and not tie_ids_to_unique_coordinates: 
-        cleaned_data_file_path = CLEANED_DATA.joinpath("data_with_newly_indexed_stations (mixed_indexer).parquet")
-
-    # Will think of a more elegant solution in due course. This only serves my current interests.
-    elif for_inference:
+    if for_inference:
         cleaned_data_file_path = CLEANED_DATA.joinpath("partially_cleaned_data_for_inference.parquet")
 
     else:
-        raise NotImplementedError(
-            "The majority of Divvy's IDs weren't numerical and valid during initial development."
-        )
+        match (using_custom_station_indexing, tie_ids_to_unique_coordinates):
+            case (True, True):
+                cleaned_data_file_path = CLEANED_DATA.joinpath("data_with_newly_indexed_stations (rounded_indexer).parquet")
 
-    if not cleaned_data_file_path.is_file():
+            case (True, False):
+                cleaned_data_file_path = CLEANED_DATA.joinpath("data_with_newly_indexed_stations (mixed_indexer).parquet")
 
+            case (False, _):
+                raise NotImplementedError("The majority of Divvy's IDs weren't numerical and valid during initial development.")
+
+
+    # Will think of a more elegant solution in due course. This only serves my current interests.
+    if cleaned_data_file_path.is_file():
+        logger.success("There is already some cleaned data. Fetching it...")
+        return pd.read_parquet(path=cleaned_data_file_path)
+
+    else:
         data["started_at"] = pd.to_datetime(data["started_at"], format="mixed")
         data["ended_at"] = pd.to_datetime(data["ended_at"], format="mixed")
 
-        data_with_missing_details_removed = delete_rows_with_missing_station_names_and_coordinates(data=data)
         features_to_drop = ["ride_id", "rideable_type", "member_casual"]
+        data_with_missing_details_removed: pd.DataFrame = delete_rows_with_missing_station_names_and_coordinates(data=data)
 
         if using_custom_station_indexing and tie_ids_to_unique_coordinates: 
             features_to_drop.extend(
@@ -118,16 +135,11 @@ def clean(data: pd.DataFrame, for_inference: bool, save: bool = True) -> pd.Data
         if save:
             data_with_missing_details_removed.to_parquet(path=cleaned_data_file_path)
 
-        return data
+        return data_with_missing_details_removed
 
-    else:
-        breakpoint()
-        logger.success("There is already some cleaned data. Fetching it...")
-        return pd.read_parquet(path=cleaned_data_file_path)
-
-            
+                
 if __name__ == "__main__":
     make_fundamental_paths()
-    # processor= DataProcessor(years=config.years, for_inference=False)
-    # training_data = processor.make_training_data(geocode=False) 
+    raw_data = retrieve_data(years=config.years, for_inference=False)
+    training_data = make_training_data(data=raw_data, for_inference=False, geocode=False) 
 
