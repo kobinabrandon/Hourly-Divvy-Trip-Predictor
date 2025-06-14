@@ -104,8 +104,8 @@ def transform_ts_into_training_data(
 
     engineered_features = finish_feature_engineering(features=features, scenario=scenario, geocode=geocode)
 
-    training_data = pd.concat( 
-        list(engineered_features, targets["trips_next_hour"]), axis=1 
+    training_data = pd.concat(
+        [engineered_features, targets["trips_next_hour"]], axis=1 
     )
 
     logger.success("Saving the data so we (hopefully) won't have to do that again...")

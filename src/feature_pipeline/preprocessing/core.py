@@ -6,11 +6,11 @@ from loguru import logger
 from src.setup.config import config
 from src.setup.config import get_proper_scenario_name
 from src.feature_pipeline.data_sourcing import load_raw_data, Year
-from src.setup.paths import CLEANED_DATA, TRAINING_DATA, make_fundamental_paths
+from src.setup.paths import TRAINING_DATA, make_fundamental_paths
 
+from src.feature_pipeline.preprocessing.cleaning import clean 
 from src.feature_pipeline.preprocessing.transformations.training_data import transform_ts_into_training_data
 from src.feature_pipeline.preprocessing.transformations.time_series.core import transform_cleaned_data_into_ts
-from src.feature_pipeline.preprocessing.cleaning import delete_rows_with_missing_station_names_and_coordinates
 from src.feature_pipeline.preprocessing.station_indexing.choice import check_if_we_use_custom_station_indexing, check_if_we_tie_ids_to_unique_coordinates 
 
 
@@ -66,8 +66,6 @@ def make_time_series(data: pd.DataFrame, for_inference: bool) -> tuple[pd.DataFr
     """
     logger.info("Cleaning downloaded data...")
 
-    # if cleaned_data_needs_update(scenario=scenario, path: Path, year_of_interest: Year)
-   
     cleaned_data: pd.DataFrame = clean(data=data, for_inference=for_inference)
     using_custom_station_indexing: bool = check_if_we_use_custom_station_indexing(data=cleaned_data, for_inference=for_inference) 
     tie_ids_to_unique_coordinates: bool = check_if_we_tie_ids_to_unique_coordinates(data=cleaned_data, for_inference=for_inference)
@@ -93,49 +91,8 @@ def make_time_series(data: pd.DataFrame, for_inference: bool) -> tuple[pd.DataFr
 
 
 
-def clean(data: pd.DataFrame, for_inference: bool, save: bool = True) -> pd.DataFrame:
-
-    tie_ids_to_unique_coordinates: bool = check_if_we_tie_ids_to_unique_coordinates(data=data, for_inference=for_inference)
-    using_custom_station_indexing: bool = check_if_we_use_custom_station_indexing(data=data, for_inference=for_inference)  
-
-    if for_inference:
-        cleaned_data_file_path = CLEANED_DATA.joinpath("partially_cleaned_data_for_inference.parquet")
-
-    else:
-        match (using_custom_station_indexing, tie_ids_to_unique_coordinates):
-            case (True, True):
-                cleaned_data_file_path = CLEANED_DATA.joinpath("data_with_newly_indexed_stations (rounded_indexer).parquet")
-
-            case (True, False):
-                cleaned_data_file_path = CLEANED_DATA.joinpath("data_with_newly_indexed_stations (mixed_indexer).parquet")
-
-            case (False, _):
-                raise NotImplementedError("The majority of Divvy's IDs weren't numerical and valid during initial development.")
 
 
-    # Will think of a more elegant solution in due course. This only serves my current interests.
-    if cleaned_data_file_path.is_file():
-        logger.success("There is already some cleaned data. Fetching it...")
-        return pd.read_parquet(path=cleaned_data_file_path)
-
-    else:
-        data["started_at"] = pd.to_datetime(data["started_at"], format="mixed")
-        data["ended_at"] = pd.to_datetime(data["ended_at"], format="mixed")
-
-        features_to_drop = ["ride_id", "rideable_type", "member_casual"]
-        data_with_missing_details_removed: pd.DataFrame = delete_rows_with_missing_station_names_and_coordinates(data=data)
-
-        if using_custom_station_indexing and tie_ids_to_unique_coordinates: 
-            features_to_drop.extend(
-                ["start_station_id", "start_station_name", "end_station_name"]
-            )
-
-        data_with_missing_details_removed = data_with_missing_details_removed.drop(columns=features_to_drop)
-
-        if save:
-            data_with_missing_details_removed.to_parquet(path=cleaned_data_file_path)
-
-        return data_with_missing_details_removed
 
                 
 if __name__ == "__main__":
