@@ -1,11 +1,8 @@
-import requests
+import os
 import pandas as pd
-from pathlib import Path
 from loguru import logger
-from datetime import datetime
 
 from src.setup.paths import CLEANED_DATA 
-from src.feature_pipeline.data_sourcing import Year
 from src.setup.config import get_proper_scenario_name 
 from src.feature_pipeline.preprocessing.station_indexing.choice import check_if_we_use_custom_station_indexing, check_if_we_tie_ids_to_unique_coordinates 
 
@@ -42,9 +39,10 @@ def clean(data: pd.DataFrame, for_inference: bool, save: bool = True) -> pd.Data
     # Will think of a more elegant solution in due course. This only serves my current interests.
     if path_to_cleaned_data.is_file():
         logger.success("There is already some cleaned data. Fetching it...")
-        # cleaned_data: pd.DataFrame = pd.read_parquet(path=path_to_cleaned_data)
+        cleaned_data: pd.DataFrame = pd.read_parquet(path=path_to_cleaned_data)
 
-        # if cleaned_data_needs_update(scenario=scenario, cleaned_data=cleaned_data, year_of_interest)
+        # if cleaned_data_needs_update(cleaned_data=cleaned_data):
+        #     os.remove(path_to_cleaned_data)
 
 
 
@@ -70,52 +68,6 @@ def clean(data: pd.DataFrame, for_inference: bool, save: bool = True) -> pd.Data
             data_with_missing_details_removed.to_parquet(path=path_to_cleaned_data)
 
         return data_with_missing_details_removed
-
-
-
-def cleaned_data_needs_update(scenario: str, cleaned_data: pd.DataFrame, years_of_interest: list[Year]) -> bool:
-
-    this_month: datetime = datetime.now().month()
-    most_recent_date_in_data: pd.Series = cleaned_data[f"{scenario}ed_at"][-1]
-
-    # Data is deemed to be if it is from prior month regardless of how many days have passed 
-    data_is_old: bool = most_recent_date_in_data.month() < this_month 
-
-    # This is a link (according to Lyft's link structure) to the data for the most 
-    this_year: int = get_latest_year(years_of_interest=years_of_interest)
-    new_data_url: str = f"https://divvy-tripdata.s3.amazonaws.com/{this_year}{this_month:02d}-divvy-tripdata.zip"
-    new_data_is_available: bool = requests.get(new_data_url).status_code == 200
-    proper_scenario_name: str = get_proper_scenario_name(scenario=scenario)
-
-    match (data_is_old, new_data_is_available):
-        case (False, _):
-            logger.info(f"Cleaned data for {proper_scenario_name} is up to date")
-            return False 
-
-        case (True, True):
-            logger.info(f"Cleaned data for {proper_scenario_name} is out of date, and new data is available")
-            return True
-
-        case (True, False):
-            logger.info(f"Cleaned data for {proper_scenario_name} is out of date, but new data is not available")
-            return False 
-
-
-def get_latest_year(years_of_interest: list[Year]) -> int:
-
-    retrieved_year: list[int] = []
-    for year in years_of_interest:
-        if datetime.now().year() == year.value:
-            retrieved_year.append(year.value) 
-
-    if len(retrieved_year) == 0:
-        raise Exception("Unable to check age of cleaned data.") 
-    else:
-        return retrieved_year[0]
-
-    # The years that you are scanning do not in ")
-
-
 
 
 def delete_rows_with_missing_station_names_and_coordinates(data: pd.DataFrame) -> pd.DataFrame: 
