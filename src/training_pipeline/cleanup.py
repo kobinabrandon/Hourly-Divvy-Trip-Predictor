@@ -1,3 +1,8 @@
+"""
+This module contains the code that cleans up project data from Comet's experiment tracker, and 
+and model data from its model registry. 
+"""
+
 from pathlib import Path
 from comet_ml import API
 from loguru import logger
@@ -22,7 +27,7 @@ def delete_prior_project_from_comet(delete_experiments: bool = True):
         logger.error(error)
 
 
-def identify_best_model(scenario: str, models_and_errors: dict[str, float]) -> str: 
+def identify_best_model(scenario: str, models_and_errors: dict[tuple[str, str], float]) -> str: 
 
     best_model_name = "" 
     smallest_test_error: float = min(models_and_errors.values())
@@ -47,15 +52,20 @@ def identify_best_model(scenario: str, models_and_errors: dict[str, float]) -> s
 
 
 def delete_best_model_from_previous_run(scenario: str):
+    """
+    The function attempts to find tuned and untuned versions of the  
 
+    Args:
+        scenario: 
+    """
     api = API(api_key=config.comet_api_key)
     name_of_best_model_from_past_run: str = retrieve_best_model_from_previous_run(scenario=scenario) 
 
     for tuned_or_not in [True, False]:
-        full_model_name = get_full_model_name(scenario=scenario, model_name=name_of_best_model_from_past_run, tuned=tuned_or_not)
+        name_of_model_at_registry = get_full_model_name(scenario=scenario, model_name=name_of_best_model_from_past_run, tuned=tuned_or_not)
 
         try:
-            api.delete_registry_model(workspace=config.comet_workspace, registry_name=full_model_name)
+            api.delete_registry_model(workspace=config.comet_workspace, registry_name=name_of_model_at_registry)
 
         except Exception as error:
             logger.error(error)

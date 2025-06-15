@@ -14,11 +14,7 @@ from src.feature_pipeline.preprocessing.transformations.time_series.core import 
 from src.feature_pipeline.preprocessing.station_indexing.choice import check_if_we_use_custom_station_indexing, check_if_we_tie_ids_to_unique_coordinates 
 
 
-def make_training_data(
-    data: pd.DataFrame, 
-    for_inference: bool, 
-    geocode: bool
-) -> list[pd.DataFrame] | tuple[pd.DataFrame, pd.DataFrame]:
+def make_training_data(data: pd.DataFrame, for_inference: bool, geocode: bool) -> list[pd.DataFrame]: 
     """
     Extract raw data, clean it, transform it into time series data, and transform that time series data into
     training data. 
@@ -62,9 +58,15 @@ def make_time_series(data: pd.DataFrame, for_inference: bool) -> tuple[pd.DataFr
     """
     logger.info("Cleaning downloaded data...")
 
-    cleaned_data: pd.DataFrame = clean(data=data, for_inference=for_inference)
-    using_custom_station_indexing: bool = check_if_we_use_custom_station_indexing(data=cleaned_data, for_inference=for_inference) 
-    tie_ids_to_unique_coordinates: bool = check_if_we_tie_ids_to_unique_coordinates(data=cleaned_data, for_inference=for_inference)
+    using_custom_station_indexing: bool = check_if_we_use_custom_station_indexing(data=data, for_inference=for_inference) 
+    tie_ids_to_unique_coordinates: bool = check_if_we_tie_ids_to_unique_coordinates(data=data, for_inference=for_inference)
+
+    cleaned_data: pd.DataFrame = clean(
+        data=data, 
+        for_inference=for_inference, 
+        using_custom_station_indexing=using_custom_station_indexing, 
+        tie_ids_to_unique_coordinates=tie_ids_to_unique_coordinates
+    )
 
     start_df_columns = ["started_at", "start_lat", "start_lng", "start_station_id"]
     end_df_columns = ["ended_at", "end_lat", "end_lng", "end_station_id"]
@@ -83,6 +85,7 @@ def make_time_series(data: pd.DataFrame, for_inference: bool) -> tuple[pd.DataFr
         using_custom_station_indexing=using_custom_station_indexing, 
         tie_ids_to_unique_coordinates=tie_ids_to_unique_coordinates,
     )
+
     return start_ts, end_ts
 
                 
@@ -90,4 +93,3 @@ if __name__ == "__main__":
     make_fundamental_paths()
     raw_data: pd.DataFrame = load_raw_data()
     training_data = make_training_data(data=raw_data, for_inference=False, geocode=False) 
-

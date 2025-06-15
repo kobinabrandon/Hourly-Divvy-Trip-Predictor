@@ -1,5 +1,8 @@
+import os
 import requests
 import pandas as pd
+from pathlib import Path
+
 from loguru import logger
 from datetime import datetime
 
@@ -8,22 +11,10 @@ from src.setup.config import get_proper_scenario_name
 from src.feature_pipeline.preprocessing.station_indexing.choice import check_if_we_use_custom_station_indexing, check_if_we_tie_ids_to_unique_coordinates 
 
 
-def clean(data: pd.DataFrame, for_inference: bool, save: bool = True) -> pd.DataFrame:
-    """
+def determine_path_to_cleaned_data(data: pd.DataFrame, for_inference: bool) -> Path:
 
-    Args:
-        data: 
-        for_inference: 
-        save: 
-
-    Returns:
-        
-
-    Raises:
-        NotImplementedError: 
-    """
     if for_inference:
-        path_to_cleaned_data =  CLEANED_DATA.joinpath("partially_cleaned_data_for_inference.parquet")
+        return CLEANED_DATA.joinpath("partially_cleaned_data_for_inference.parquet")
 
     else:
         tie_ids_to_unique_coordinates: bool = check_if_we_tie_ids_to_unique_coordinates(data=data, for_inference=for_inference)
@@ -31,44 +22,57 @@ def clean(data: pd.DataFrame, for_inference: bool, save: bool = True) -> pd.Data
 
         match (using_custom_station_indexing, tie_ids_to_unique_coordinates):
             case (True, True):
-                path_to_cleaned_data = CLEANED_DATA.joinpath("data_with_newly_indexed_stations (rounded_indexer).parquet")
+                return CLEANED_DATA.joinpath("data_with_newly_indexed_stations (rounded_indexer).parquet")
             case (True, False):
-                path_to_cleaned_data = CLEANED_DATA.joinpath("data_with_newly_indexed_stations (mixed_indexer).parquet")
+                return CLEANED_DATA.joinpath("data_with_newly_indexed_stations (mixed_indexer).parquet")
             case (False, _):
                 raise NotImplementedError("The majority of Divvy's IDs weren't numerical and valid during initial development.")
 
+
+def clean(
+        data: pd.DataFrame, 
+        for_inference: bool, 
+        using_custom_station_indexing: bool, 
+        tie_ids_to_unique_coordinates: bool
+) -> pd.DataFrame:
+    """
+
+    Args:
+        data: 
+        using_custom_station_indexing: bool, 
+        tie_ids_to_unique_coordinates: bool 
+
+    Returns:
+
+    Raises:
+        NotImplementedError: 
+    """
+
+    path_to_cleaned_data = determine_path_to_cleaned_data(data=data, for_inference=for_inference)
+    
     # Will think of a more elegant solution in due course. This only serves my current interests.
     if path_to_cleaned_data.is_file():
         logger.success("There is already some cleaned data. Fetching it...")
         cleaned_data: pd.DataFrame = pd.read_parquet(path=path_to_cleaned_data)
 
-        # if cleaned_data_needs_update(cleaned_data=cleaned_data):
-        #     os.remove(path_to_cleaned_data)
+        if cleaned_data_needs_update(cleaned_data=cleaned_data):
+            os.remove(path_to_cleaned_data)
 
+    data["started_at"] = pd.to_datetime(data["started_at"], format="mixed")
+    data["ended_at"] = pd.to_datetime(data["ended_at"], format="mixed")
 
+    features_to_drop = ["ride_id", "rideable_type", "member_casual"]
+    data_with_missing_details_removed: pd.DataFrame = delete_rows_with_missing_station_names_and_coordinates(data=data)
 
+    if using_custom_station_indexing and tie_ids_to_unique_coordinates: 
+        features_to_drop.extend(
+            ["start_station_id", "start_station_name", "end_station_name"]
+        )
 
+    data_with_missing_details_removed: pd.DataFrame = data_with_missing_details_removed.drop(columns=features_to_drop)
+    data_with_missing_details_removed.to_parquet(path=path_to_cleaned_data)
 
-    else:
-        data["started_at"] = pd.to_datetime(data["started_at"], format="mixed")
-        data["ended_at"] = pd.to_datetime(data["ended_at"], format="mixed")
-
-        features_to_drop = ["ride_id", "rideable_type", "member_casual"]
-        data_with_missing_details_removed: pd.DataFrame = delete_rows_with_missing_station_names_and_coordinates(data=data)
-
-        using_custom_station_indexing = check_if_we_tie_ids_to_unique_coordinates(data=data, for_inference=for_inference)
-
-        if using_custom_station_indexing and tie_ids_to_unique_coordinates: 
-            features_to_drop.extend(
-                ["start_station_id", "start_station_name", "end_station_name"]
-            )
-
-        data_with_missing_details_removed = data_with_missing_details_removed.drop(columns=features_to_drop)
-
-        if save:
-            data_with_missing_details_removed.to_parquet(path=path_to_cleaned_data)
-
-        return data_with_missing_details_removed
+    return data_with_missing_details_removed
 
 
 def cleaned_data_needs_update(cleaned_data: pd.DataFrame) -> bool:
@@ -92,8 +96,7 @@ def cleaned_data_needs_update(cleaned_data: pd.DataFrame) -> bool:
         
     """
     this_month: datetime = datetime.now().month
-
-    most_recent_date_in_data: datetime = cleaned_data["started_at"][-1]
+    most_recent_date_in_data: datetime = cleaned_data["started_at"].sort_values().iloc[-1]
     last_month_in_data: int = most_recent_date_in_data.month  
     last_year_in_data: int = most_recent_date_in_data.year  
     data_is_old: bool = last_month_in_data < this_month 
@@ -114,7 +117,6 @@ def cleaned_data_needs_update(cleaned_data: pd.DataFrame) -> bool:
         case (True, False):
             logger.info("Cleaned data for out of date, but new data is not available")
             return False 
-
 
 
 def delete_rows_with_missing_station_names_and_coordinates(data: pd.DataFrame) -> pd.DataFrame: 

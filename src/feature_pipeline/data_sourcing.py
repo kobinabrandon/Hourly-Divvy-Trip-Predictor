@@ -96,6 +96,7 @@ def load_raw_data() -> pd.DataFrame:
     periods: list[Period] = select_months_of_interest()
 
     for period in periods:
+        period.months.sort()  # Sort the list that contains the months into ascending order 
         for month in period.months:
             file_name = f"{period.year}{month:02d}-divvy-tripdata"
             download_file_if_needed(year=period.year, month=month, file_name=file_name)

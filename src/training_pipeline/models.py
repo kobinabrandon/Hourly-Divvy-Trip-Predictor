@@ -17,7 +17,7 @@ from src.setup.paths import TRAINING_DATA, MODELS_DIR, make_fundamental_paths
 class BaseModel:
 
     def __init__(self, scenario: str):
-        self.scenario = scenario
+        self.scenarioL: str = scenario
         self.data = pd.read_parquet(TRAINING_DATA/f"{scenario}s.parquet")
 
     @staticmethod
@@ -80,11 +80,11 @@ def get_model(model_name: str) -> BaseModel | Lasso | LGBMRegressor | XGBRegress
         raise Exception("Provided improper model name")
 
 
-def load_local_model(directory: Path, model_name: str, scenario: str, tuned: str) -> Pipeline:
+def load_local_model(directory: Path, model_name: str, scenario: str, tuned_or_not: str) -> Pipeline:
     """
-    Allows for model objects that have been downloaded from the model registry, or created locally to be loaded
-    and returned for inference or other purpose. It was important that the function be global and that it allow
-    models to be loaded from either of the directories that correspond to each model source.
+    Allows for model objects that have been downloaded from the model registry, or saved locally to be loaded
+    and returned for inference. It was important that the function be global and that it allow models to be 
+    loaded from either of the directories that correspond to each model source.
 
     Args:
         directory: the directory where the models are being stored

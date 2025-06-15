@@ -23,7 +23,7 @@ class GeneralConfig(BaseSettings):
     n_features: int = 672
 
     # The number of months in the immediate past that for which we will retrieve data 
-    offset: int = 12 
+    offset: int = 6 
 
     # Hopsworks
     backfill_days: int = 210 

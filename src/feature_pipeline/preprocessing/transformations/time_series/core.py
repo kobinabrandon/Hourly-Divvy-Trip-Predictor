@@ -16,7 +16,25 @@ def transform_cleaned_data_into_ts(
         tie_ids_to_unique_coordinates: bool,
         save: bool = True
 ) -> tuple[pd.DataFrame, pd.DataFrame] | pd.DataFrame:
+    """
+        Converts cleaned data into time series data.
 
+        In addition to the putting the arrival and departure times in hourly form, we approximate
+        the latitudes and longitudes of each point of origin or destination (we are targeting
+        no more than a 100m radius of each point, but ideally we would like to maintain a 10m
+        radius), and use these to construct new station IDs.
+
+        Args:
+            scenarios: 
+            cleaned_start_data (pd.DataFrame): dataframe of departure data
+            cleaned_end_data (pd.DataFrame): dataframe of arrival data
+            using_custom_station_indexing: 
+            tie_ids_to_unique_coordinates: 
+            save (bool): whether we wish to save the generated time series data
+
+        Returns:
+            tuple[pd.DataFrame, pd.DataFrame]: the time series datasets on arrivals or departures
+    """
     interim_dataframes: list[pd.DataFrame] = []
     match (using_custom_station_indexing, tie_ids_to_unique_coordinates):
 
@@ -144,45 +162,12 @@ def get_ts_or_transform_cleaned_data_into_ts() -> tuple[pd.DataFrame, pd.DataFra
             return start_ts, end_ts
 
        
-# def transform_cleaned_data_into_ts_data(
-#         self,
-#         cleaned_start_data: pd.DataFrame,
-#         cleaned_end_data: pd.DataFrame,
-#         save: bool = True,
-#     ) -> tuple[pd.DataFrame, pd.DataFrame]:
-#         """
-#         Converts cleaned data into time series data.
-#
-#         In addition to the putting the arrival and departure times in hourly form, we approximate
-#         the latitudes and longitudes of each point of origin or destination (we are targeting
-#         no more than a 100m radius of each point, but ideally we would like to maintain a 10m
-#         radius), and use these to construct new station IDs.
-#
-#         Args:
-#             cleaned_start_data (pd.DataFrame): dataframe of departure data
-#
-#             cleaned_end_data (pd.DataFrame): dataframe of arrival data
-#
-#             save (bool): whether we wish to save the generated time series data
-#
-#         Returns:
-#             tuple[pd.DataFrame, pd.DataFrame]: the time series datasets on arrivals or departures
-#         """
-#
-
-        
 def aggregate_final_ts(interim_data: pd.DataFrame, start_or_end: str) -> pd.DataFrame | list[pd.DataFrame, pd.DataFrame]:
-
-    #  if self.use_custom_station_indexing(data=self.data, scenarios=[start_or_end]) and \
-    #        self.tie_ids_to_unique_coordinates(data=self.data):
-
-    #    interim_data = interim_data.drop(f"rounded_{start_or_end}_points", axis=1)
-
+ 
     logger.info(f"Aggregating the final time series data for the {get_proper_scenario_name(scenario=start_or_end)}...")
 
-    agg_data = interim_data.groupby(
-        [f"{start_or_end}_hour", f"{start_or_end}_station_id"]).size().reset_index()
-
+    columns_to_group_by = [f"{start_or_end}_hour", f"{start_or_end}_station_id"]
+    agg_data = interim_data.groupby(columns_to_group_by).size().reset_index()
     agg_data = agg_data.rename(columns={0: "trips"})
     return agg_data
 

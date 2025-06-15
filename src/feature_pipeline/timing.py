@@ -54,7 +54,7 @@ def select_months_of_interest(offset: int = config.offset) -> list[Period]:
             Period(year=current_year - 1, months=previous_year_months_of_interest),
             Period(year=current_year, months=current_year_months_of_interest)
         ] 
-    
+
     else:
         months_of_interest = [month for month in range(current_month + 1 ) if month != 0] 
         return [ Period(year=current_year, months=months_of_interest) ] 

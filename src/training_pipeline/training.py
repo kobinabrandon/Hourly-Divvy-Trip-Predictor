@@ -14,18 +14,15 @@ from sklearn.metrics import mean_absolute_error
 from sklearn.pipeline import Pipeline, make_pipeline
 
 from src.setup.config import config
+from src.feature_pipeline.data_sourcing import load_raw_data
+from src.feature_pipeline.preprocessing.core import make_training_data
+
+
 from src.training_pipeline.models import get_model
-from src.feature_pipeline.preprocessing import DataProcessor
 from src.training_pipeline.hyperparameter_tuning import tune_hyperparameters
 from src.setup.paths import TRAINING_DATA, LOCAL_SAVE_DIR, make_fundamental_paths
 from src.inference_pipeline.backend.model_registry import push_model, get_full_model_name
-
-from src.training_pipeline.cleanup import (
-    identify_best_model,
-    delete_prior_project_from_comet,
-    delete_best_model_from_previous_run, 
-)
-
+from src.training_pipeline.cleanup import identify_best_model, delete_prior_project_from_comet, delete_best_model_from_previous_run 
 
 
 def get_or_make_training_data(scenario: str) -> tuple[pd.DataFrame, pd.Series]:
@@ -44,8 +41,8 @@ def get_or_make_training_data(scenario: str) -> tuple[pd.DataFrame, pd.Series]:
     else:
         logger.warning("No training data is storage. Creating the dataset will take a while.")
 
-        processor = DataProcessor(years=config.years, for_inference=False)
-        training_sets = processor.make_training_data(geocode=False)
+        raw_data: pd.DataFrame = load_raw_data()
+        training_sets = make_training_data(data=raw_data, for_inference=False, geocode=False)
         training_data = training_sets[0] if scenario.lower() == "start" else training_sets[1]
         logger.success("Training data produced successfully")
 
@@ -132,7 +129,7 @@ def register_model(scenario: str, model_name: str, status: str, version: str = "
     push_model(scenario=scenario, model_name=model_name, status=status.title(), version=version)
 
 
-def save_model_locally(scenario, model_fn: Pipeline, model_name: str, tuned: bool):
+def save_model_locally(scenario: str, model_fn: Pipeline, model_name: str, tuned: bool):
     """
     Save the trained model locally as a .pkl file
 
@@ -142,7 +139,7 @@ def save_model_locally(scenario, model_fn: Pipeline, model_name: str, tuned: boo
     """
     logger.success("Saving model to disk")
 
-    model_file_name = f"{model_name.title()} ( {"Tuned" if tuned else "Untuned"} for {scenario}s ).pkl"
+    model_file_name = f"{model_name.title()} ({"Tuned" if tuned else "Untuned"} for {scenario}s).pkl"
     with open(LOCAL_SAVE_DIR/model_file_name, mode="wb") as file:
         pickle.dump(obj=model_fn, file=file)
 

@@ -298,8 +298,8 @@ def make_map(_geodataframe_and_predictions: pd.DataFrame) -> None:
     layer = pdk.Layer(
         data=_geodataframe_and_predictions,
         type="ScatterplotLayer",     
-        get_position=f"coordinates",
-        get_fill_color=f"fill_colour",
+        get_position="coordinates",
+        get_fill_color="fill_colour",
         opacity=0.25,
         stroked=False,
         filled=True,
