@@ -5,7 +5,6 @@ from datetime import datetime, UTC
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from src.setup.paths import PARENT_DIR
-from src.feature_pipeline.data_sourcing import Year
 
 
 env_file_path = PARENT_DIR.joinpath(".env") 
@@ -20,12 +19,11 @@ class GeneralConfig(BaseSettings):
         extra="allow"
     )
 
-    years: list[Year] = [
-        Year(value=2025, offset=0)
-    ]
-
     email: str
     n_features: int = 672
+
+    # The number of months in the immediate past that for which we will retrieve data 
+    offset: int = 12 
 
     # Hopsworks
     backfill_days: int = 210 

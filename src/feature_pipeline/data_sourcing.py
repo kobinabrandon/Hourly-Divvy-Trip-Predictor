@@ -10,7 +10,14 @@ I have since decided to restrict my training data to the most recent year of dat
 because the most relevant data is obviously valuable, and because I don't want to deal 
 with the extra demands on my memory and time that preprocessing that data would have required 
 (not to speak of the training and testing of models).    
+
+I embedded an assert statement in the function that performs the downloads to enforce the 
+requirement that data not come from prior to 2021. After 2021, the zipfiles were packaged differently. 
+Also, data from earlier years would be less useful for my purposes anyway. Plus I only intend to 
+download data from at most a year prior anyway. I just want that assert statement to be there as a 
+testament to my awareness of the fact that Lyft changed the way they name their files.
 """
+
 import os
 import requests
 import pandas as pd
@@ -18,9 +25,9 @@ import pandas as pd
 from pathlib import Path
 from loguru import logger
 from zipfile import ZipFile
-from datetime import datetime as dt
 
 from src.setup.paths import RAW_DATA_DIR, make_fundamental_paths
+from src.feature_pipeline.timing import Period, select_months_of_interest
 
        
 def download_file_if_needed(
@@ -42,20 +49,14 @@ def download_file_if_needed(
         month (list[int] | None, optional): the month for which we seek data
     """
     if month is not None:
-        local_file = RAW_DATA_DIR.joinpath(file_name)
+        local_file: Path = RAW_DATA_DIR.joinpath(file_name)
         if local_file.exists():
             logger.success(f"{file_name}.zip is already saved")
         else:
             try:
                 logger.info(f"Downloading and extracting {file_name}.zip")
-
-                assert year >= 2021; 
-                """
-                The downloader is currently configured for years after 2021 because the zipfiles were packaged 
-                differently for earlier years. Also, data from earlier years would be less useful for my purposes 
-                anyway.
-                """
-
+                assert year >= 2021  # See the module's docstring
+                
                 zipfile_name: str = f"{year}{month:02d}-divvy-tripdata.zip"
                 url = f"https://divvy-tripdata.s3.amazonaws.com/{zipfile_name}"
                 response = requests.get(url)
@@ -82,40 +83,22 @@ def download_file_if_needed(
                 logger.error(error)
 
 
-class Year:
-    """
-    Attributes: 
-        value: the year (as a number) 
-        offset: how many months to skip (from the "front"). This argument will allow me to adjust how 
-                much data I download and use as new data is released  
-    """
-    def __init__(self, value: int, offset: int) -> None:
-        self.value: int = value 
-        self.offset: int = offset
-
-
-def load_raw_data(years: list[Year]) -> pd.DataFrame:
+def load_raw_data() -> pd.DataFrame:
     """
     For each year, we download or load the data for either the specified months, or 
     for all months up to the present month (if the data being sought is from this year).
     
-    Args:
-        year (int): the year whose data we want to load
-
     Yields:
-        Iterator[pd.DataFrame]: the requested datasets.
+        pd.DataFrame: a dataframe made that is a concatenation of the downloaded data
     """
     data = pd.DataFrame()
     make_fundamental_paths()
+    periods: list[Period] = select_months_of_interest()
 
-    for year in years:
-        is_current_year = True if year.value == dt.now().year else False
-        end_month = dt.now().month if is_current_year else 12 
-        months_to_download = range(1 + year.offset, end_month + 1) 
-
-        for month in months_to_download:
-            file_name = f"{year.value}{month:02d}-divvy-tripdata"
-            download_file_if_needed(year=year.value, month=month, file_name=file_name)
+    for period in periods:
+        for month in period.months:
+            file_name = f"{period.year}{month:02d}-divvy-tripdata"
+            download_file_if_needed(year=period.year, month=month, file_name=file_name)
             path_to_month_data: Path = RAW_DATA_DIR.joinpath(f"{file_name}").joinpath(f"{file_name}.csv")
 
             if path_to_month_data.exists():

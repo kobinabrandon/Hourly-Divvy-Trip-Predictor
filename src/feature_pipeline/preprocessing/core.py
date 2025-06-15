@@ -5,17 +5,13 @@ from loguru import logger
 
 from src.setup.config import config
 from src.setup.config import get_proper_scenario_name
-from src.feature_pipeline.data_sourcing import load_raw_data, Year
+from src.feature_pipeline.data_sourcing import load_raw_data
 from src.setup.paths import TRAINING_DATA, make_fundamental_paths
 
 from src.feature_pipeline.preprocessing.cleaning import clean 
 from src.feature_pipeline.preprocessing.transformations.training_data import transform_ts_into_training_data
 from src.feature_pipeline.preprocessing.transformations.time_series.core import transform_cleaned_data_into_ts
 from src.feature_pipeline.preprocessing.station_indexing.choice import check_if_we_use_custom_station_indexing, check_if_we_tie_ids_to_unique_coordinates 
-
-
-def retrieve_data(years: list[Year], for_inference: bool) -> pd.DataFrame | None: 
-    return load_raw_data(years=years) if not for_inference else None  # Because the data will have been fetched from the feature store instead.
 
 
 def make_training_data(
@@ -89,14 +85,9 @@ def make_time_series(data: pd.DataFrame, for_inference: bool) -> tuple[pd.DataFr
     )
     return start_ts, end_ts
 
-
-
-
-
-
                 
 if __name__ == "__main__":
     make_fundamental_paths()
-    raw_data = retrieve_data(years=config.years, for_inference=False)
+    raw_data: pd.DataFrame = load_raw_data()
     training_data = make_training_data(data=raw_data, for_inference=False, geocode=False) 
 
