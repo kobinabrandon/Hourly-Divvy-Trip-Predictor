@@ -9,7 +9,7 @@ from loguru import logger
 
 from src.setup.config import config
 from src.setup.paths import MODELS_DIR
-from src.inference_pipeline.backend.model_registry import get_full_model_name
+from src.training_pipeline.models import get_full_model_name
 
 
 def delete_prior_project_from_comet(delete_experiments: bool = True):
@@ -28,7 +28,18 @@ def delete_prior_project_from_comet(delete_experiments: bool = True):
 
 
 def identify_best_model(scenario: str, models_and_errors: dict[tuple[str, str], float]) -> str: 
+    """
 
+    Args:
+        scenario: 
+        models_and_errors: 
+
+    Returns:
+        
+
+    Raises:
+        Exception: 
+    """
     best_model_name = "" 
     smallest_test_error: float = min(models_and_errors.values())
 
@@ -56,7 +67,7 @@ def delete_best_model_from_previous_run(scenario: str):
     The function attempts to find tuned and untuned versions of the  
 
     Args:
-        scenario: 
+        scenario: "start" or "end" 
     """
     api = API(api_key=config.comet_api_key)
     name_of_best_model_from_past_run: str = retrieve_best_model_from_previous_run(scenario=scenario) 
@@ -72,7 +83,16 @@ def delete_best_model_from_previous_run(scenario: str):
 
 
 def retrieve_best_model_from_previous_run(scenario: str) -> str:
+    """
+    During the training process, I saved a .txt file which contained the name of the best model. This string followed
+    the format "{model_name}_{tuned_or_not}"
 
+    Args:
+        scenario: "start" or "end"
+
+    Returns:
+        
+    """
     with open(MODELS_DIR.joinpath(f"best_{scenario}_model.txt"), mode="r") as file:
         model_name = file.read()
 

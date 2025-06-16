@@ -21,11 +21,10 @@ from sklearn.pipeline import make_pipeline
 from xgboost import XGBRegressor
 from lightgbm import LGBMRegressor
 from sklearn.linear_model import Lasso
-from src.training_pipeline.models import BaseModel
 
 
 def sample_hyperparameters(
-        model_fn: BaseModel | Lasso | LGBMRegressor | XGBRegressor,
+        model_fn: Lasso | LGBMRegressor | XGBRegressor,
         trial: optuna.trial.Trial
 ) -> dict[str, str | int | float]:
     """
@@ -67,7 +66,7 @@ def sample_hyperparameters(
 
 
 def tune_hyperparameters(
-        model_fn: BaseModel | Lasso | LGBMRegressor | XGBRegressor,
+        model_fn: Lasso | LGBMRegressor | XGBRegressor,
         tuning_trials: int,
         experiment: Experiment,
         x: pd.DataFrame,
@@ -91,7 +90,6 @@ def tune_hyperparameters(
         Lasso: "lasso",
         LGBMRegressor: "lightgbm",
         XGBRegressor: "xgboost",
-        BaseModel: "base"
     }
     assert model_fn in models_and_tags.keys()
     model_name = models_and_tags[model_fn]

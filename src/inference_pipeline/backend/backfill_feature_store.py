@@ -11,14 +11,15 @@ from src.setup.config import config
 from src.feature_pipeline.preprocessing.core import make_time_series 
 from src.training_pipeline.cleanup import retrieve_best_model_from_previous_run
 
-# from src.inference_pipeline.backend.inference import (
-#     get_feature_group_for_time_series, 
-#     fetch_time_series_and_make_features, 
-#     get_model_predictions
-# )
-#
-# from src.inference_pipeline.backend.feature_store import setup_feature_group
-from src.inference_pipeline.backend.model_registry import download_model, get_name_of_model_type, get_full_model_name 
+from src.inference_pipeline.backend.inference import (
+    get_feature_group_for_time_series, 
+    fetch_time_series_and_make_features, 
+    get_model_predictions
+)
+
+from src.inference_pipeline.backend.model_registry import download_model
+from src.inference_pipeline.backend.feature_store import setup_feature_group
+from src.training_pipeline.models import get_name_of_model_type, get_full_model_name 
 
 
 def backfill_features(scenario: str) -> None:

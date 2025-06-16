@@ -14,50 +14,7 @@ from sklearn.metrics import mean_absolute_error
 from src.setup.paths import TRAINING_DATA, MODELS_DIR, make_fundamental_paths
 
 
-class BaseModel:
-
-    def __init__(self, scenario: str):
-        self.scenarioL: str = scenario
-        self.data = pd.read_parquet(TRAINING_DATA/f"{scenario}s.parquet")
-
-    @staticmethod
-    def fit(x_train: pd.DataFrame, y_train: pd.Series):
-        pass
-
-    def train_test_split(self, cutoff_date: datetime) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]:
-        """
-        This is just a primitive splitting function that treats all data before a certain date
-        as training data, and everything after that as test data.
-
-        Args:
-            cutoff_date:
-
-        Returns:
-            tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]: the training and test sets  (features and targets)
-        """
-        # Separate training and test data
-        training_data = self.data[self.data[f"{self.scenario}_hour"] < cutoff_date].reset_index(drop=True)
-        test_data = self.data[self.data[f"{self.scenario}_hour"] > cutoff_date].reset_index(drop=True)
-
-        # Split training data into features and the target
-        x_train = training_data.drop(columns=["trips_next_hour"])
-        y_train = training_data["trips_next_hour"]
-
-        # Split testing data into features and the target
-        x_test = test_data.drop(columns=["trips_next_hour"])
-        y_test = test_data["trips_next_hour"]
-        return x_train, y_train, x_test, y_test
-
-    @staticmethod
-    def predict(x_test: pd.DataFrame) -> np.array:
-        return x_test["trips_previous_1_hour"]
-
-    @staticmethod
-    def compute_error(y_true: float, y_pred: float):
-        return mean_absolute_error(y_true=y_true, y_pred=y_pred)
-
-
-def get_model(model_name: str) -> BaseModel | Lasso | LGBMRegressor | XGBRegressor:
+def get_model(model_name: str) -> Lasso | LGBMRegressor | XGBRegressor:
     """
     
     Args:
@@ -65,13 +22,12 @@ def get_model(model_name: str) -> BaseModel | Lasso | LGBMRegressor | XGBRegress
                           'xgboost' for XGBRegressor, 'lightgbm' for LGBMRegressor, and 'lasso' for Lasso.
 
     Returns:
-        BaseModel|XGBRegressor|LGBMRegressor: the requested model
+        Lasso|XGBRegressor|LGBMRegressor: the requested model
     """
     models_and_names = {
         "lasso": Lasso,
         "lightgbm": LGBMRegressor,
         "xgboost": XGBRegressor,
-        "base": BaseModel
     }
 
     if model_name.lower() in models_and_names.keys():
@@ -99,11 +55,39 @@ def load_local_model(directory: Path, model_name: str, scenario: str, tuned_or_n
     if not Path(MODELS_DIR).exists():
         make_fundamental_paths()
 
-    assert model_name.lower() in ["base", "lasso", "lightgbm", "xgboost"], \
-        "The requested model is not currently among those implemented"
+    tuned_bool = True if tuned_or_not.lower() == "tuned" else False  
+    full_model_name = get_full_model_name(
+        scenario=scenario, 
+        model_name=model_name, 
+        tuned=tuned_bool
+    )
 
-    model_file_name = f"{model_name.title()} ({tuned_or_not.title()} for {scenario}s).pkl"
-    model_file = directory / model_file_name
-    with open(model_file, "rb") as file:
+    model_file_path: Path = f"{directory.joinpath(full_model_name)}.pkl"
+
+    with open(model_file_path, "rb") as file:
         return pickle.load(file)
+
+
+def get_name_of_model_type(model_name: str, tuned: bool) -> str:
+    tuned_or_untuned_string = "Tuned" if tuned else "Untuned"
+    return model_name.title().replace(f"_{tuned_or_untuned_string}", "")
+
+
+def get_full_model_name(scenario: str, model_name: str, tuned: bool) -> str:
+    """
+    What we want here is the string that describes what I consider to be the complete name of the
+    model. This is the name that will be given to the model on Comet's model registry. It is also 
+    the name that is given to the model in my local directories.
+
+    Args:
+        model_name: A truncated form of the model's name. F 
+        tuned: a boolean that indicates whether the model in question is tuned. It will be used tuned_or_untuned_string
+               construct the string we want 
+
+    Returns:
+      str: the name that will be given to the model on Comet
+    """
+    tuned_or_untuned_string = "Tuned" if tuned else "Untuned"
+    name_of_model_type = get_name_of_model_type(model_name=model_name, tuned=tuned)
+    return f"{name_of_model_type} ({tuned_or_untuned_string} for {scenario}s)"
 

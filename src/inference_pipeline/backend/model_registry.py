@@ -10,7 +10,7 @@ from sklearn.pipeline import Pipeline
 from comet_ml import ExistingExperiment, get_global_experiment, API
 
 from src.setup.config import config
-from src.training_pipeline.models import load_local_model
+from src.training_pipeline.models import load_local_model, get_full_model_name
 from src.setup.paths import COMET_SAVE_DIR, LOCAL_SAVE_DIR, make_fundamental_paths
 
 
@@ -64,9 +64,13 @@ def download_model(scenario: str, unzip: bool, tuned: bool, model_name: str) -> 
         Pipeline: the original model file
     """
     make_fundamental_paths()
-    full_model_name = get_full_model_name(scenario=scenario, model_name=model_name, tuned=tuned)
+    full_model_name = get_full_model_name(
+        scenario=scenario, 
+        model_name=model_name, 
+        tuned="tuned" if tuned else "untuned"
+    )
+
     save_path: Path = COMET_SAVE_DIR.joinpath(f"{full_model_name}.pkl")
-    breakpoint()
     registered_model_version = get_registered_model_version(full_model_name=full_model_name)
 
     if not save_path.exists():
@@ -85,30 +89,11 @@ def download_model(scenario: str, unzip: bool, tuned: bool, model_name: str) -> 
         directory=COMET_SAVE_DIR,
         model_name=model_name,
         scenario=scenario,
-        tuned_or_not=tuned
+        tuned_or_not="tuned" if tuned else "untuned"
     )
     
     return model
 
-
-def get_name_of_model_type(model_name: str, tuned: bool) -> str:
-    tuned_or_untuned_string = "Tuned" if tuned else "Untuned"
-    return model_name.title().replace(f"_{tuned_or_untuned_string}", "")
-
-
-def get_full_model_name(scenario: str, model_name: str, tuned: bool) -> str:
-    """
-
-    Args:
-        model_name: 
-        tuned: 
-
-    Returns:
-      str: the name that will be given to the model on Comet
-    """
-    tuned_or_untuned_string = "Tuned" if tuned else "Untuned"
-    name_of_model_type = get_name_of_model_type(model_name=model_name, tuned=tuned)
-    return f"{name_of_model_type} ({tuned_or_untuned_string} for {scenario}s)"
 
 
 def get_registered_model_version(full_model_name: str) -> str:
