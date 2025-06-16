@@ -19,8 +19,9 @@ from hsfs.feature_view import FeatureView
 
 from src.setup.config import config
 from src.setup.paths import ROUNDING_INDEXER, MIXED_INDEXER
-from src.feature_pipeline.preprocessing import DataProcessor
+from src.feature_pipeline.preprocessing.core import make_training_data
 from src.inference_pipeline.backend.feature_store import setup_feature_group, get_or_create_feature_view
+from src.feature_pipeline.preprocessing.transformations.training_data import transform_ts_into_training_data
 
 
 def get_feature_group_for_time_series(scenario: str, primary_key: list[str]) -> FeatureGroup:
@@ -99,10 +100,8 @@ def make_features(
     Returns:
         pd.DataFrame: time series data
     """
-    processor = DataProcessor(years=config.years, for_inference=True)
-    
     # Perform transformation of the time series data with feature engineering
-    features = processor.transform_ts_into_training_data(
+    features = transform_ts_into_training_data(
         scenario=scenario, 
         ts_data=ts_data,
         geocode=geocode,
@@ -250,8 +249,7 @@ def rerun_feature_pipeline():
                 logger.warning(message)
                 st.spinner(message)
 
-                processor = DataProcessor(years=config.years, for_inference=False)
-                processor.make_training_data(geocode=False)
+                make_training_data(data=raw_data, for_inferenc=False, geocode=False)
                 return fn(*args, **kwargs)
         return wrapper
     return decorator

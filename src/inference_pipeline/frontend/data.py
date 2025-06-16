@@ -18,7 +18,6 @@ from datetime import datetime
 from src.setup.config import config
 from src.setup.paths import ROUNDING_INDEXER, MIXED_INDEXER, GEOGRAPHICAL_DATA
 
-from src.feature_pipeline.preprocessing import DataProcessor
 from src.feature_pipeline.feature_engineering import ReverseGeocoder
 from src.inference_pipeline.backend.inference import rerun_feature_pipeline, load_raw_local_geodata
 

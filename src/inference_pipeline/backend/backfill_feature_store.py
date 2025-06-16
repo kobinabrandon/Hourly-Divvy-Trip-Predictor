@@ -8,6 +8,7 @@ from argparse import ArgumentParser
 from datetime import datetime, timedelta
 
 from src.setup.config import config
+from src.feature_pipeline.data_sourcing import load_raw_data 
 from src.feature_pipeline.preprocessing.core import make_time_series 
 from src.training_pipeline.cleanup import retrieve_best_model_from_previous_run
 
@@ -35,12 +36,12 @@ def backfill_features(scenario: str) -> None:
     primary_key = ["timestamp", f"{scenario}_station_id"]
 
     raw_data: pd.DataFrame = load_raw_data()
-    start_ts, end_ts = make_time_series(data=raw_data)
+    start_ts, end_ts = make_time_series(data=raw_data, for_inference=False)
     ts_data = start_ts if scenario == "start" else end_ts 
 
     ts_data["timestamp"] = pd.to_datetime(ts_data[f"{scenario}_hour"]).astype(int) // 10 ** 6  # Express in ms
     ts_feature_group = get_feature_group_for_time_series(scenario=scenario, primary_key=primary_key)
-    ts_feature_group.insert(write_options={"wait_for_job": True}, features=ts_data) # Push time series data to the feature group
+    ts_feature_group.insert(write_options={"wait_for_job": True}, features=ts_data)  # Push time series data to the feature group
 
 
 def backfill_predictions(scenario: str, target_date: datetime) -> None: 
