@@ -144,7 +144,7 @@ def save_model_locally(scenario: str, model_fn: Pipeline, model_name: str, tuned
         pickle.dump(obj=model_fn, file=file)
 
 
-def train_all_models(tuning_trials: int = 10):
+def train_all_models(tuning_trials: int = config.tuning_trials):
     """
     Train the named models, identify the best performer (on the test data) and
     register it to the CometML model registry.

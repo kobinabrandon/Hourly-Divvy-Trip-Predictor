@@ -24,6 +24,7 @@ class GeneralConfig(BaseSettings):
 
     # The number of months in the immediate past that for which we will retrieve data 
     offset: int = 6 
+    tuning_trials: int = 10
 
     # Hopsworks
     backfill_days: int = 210 

@@ -31,8 +31,10 @@ def push_model(scenario: str, model_name: str, status: str, version: str) -> Non
     experiment = ExistingExperiment(api_key=running_experiment.api_key, experiment_key=running_experiment.id)
 
     logger.info("Logging model to Comet ML")
-    tuned = "_tuned" in model_name
-    corrected_model_name: str = model_name.replace("_tuned" if tuned else "_untuned", "")  # Remove the suffix "_tuned" or "_untuned" that was added when we identified the best model 
+    tuned: bool = "_tuned" in model_name
+
+    # Remove the suffix "_tuned" or "_untuned" that was added when we identified the best model 
+    corrected_model_name: str = model_name.replace("_tuned" if tuned else "_untuned", "")  
 
     full_model_name = get_full_model_name(
         scenario=scenario, 
@@ -64,6 +66,7 @@ def download_model(scenario: str, unzip: bool, tuned: bool, model_name: str) -> 
     make_fundamental_paths()
     full_model_name = get_full_model_name(scenario=scenario, model_name=model_name, tuned=tuned)
     save_path: Path = COMET_SAVE_DIR.joinpath(f"{full_model_name}.pkl")
+    breakpoint()
     registered_model_version = get_registered_model_version(full_model_name=full_model_name)
 
     if not save_path.exists():
@@ -88,6 +91,11 @@ def download_model(scenario: str, unzip: bool, tuned: bool, model_name: str) -> 
     return model
 
 
+def get_name_of_model_type(model_name: str, tuned: bool) -> str:
+    tuned_or_untuned_string = "Tuned" if tuned else "Untuned"
+    return model_name.title().replace(f"_{tuned_or_untuned_string}", "")
+
+
 def get_full_model_name(scenario: str, model_name: str, tuned: bool) -> str:
     """
 
@@ -99,7 +107,7 @@ def get_full_model_name(scenario: str, model_name: str, tuned: bool) -> str:
       str: the name that will be given to the model on Comet
     """
     tuned_or_untuned_string = "Tuned" if tuned else "Untuned"
-    name_of_model_type = model_name.title().replace(f"_{tuned_or_untuned_string}", "")
+    name_of_model_type = get_name_of_model_type(model_name=model_name, tuned=tuned)
     return f"{name_of_model_type} ({tuned_or_untuned_string} for {scenario}s)"
 
 
