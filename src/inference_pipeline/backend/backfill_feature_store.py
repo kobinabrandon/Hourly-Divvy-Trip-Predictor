@@ -82,6 +82,9 @@ def backfill_predictions(scenario: str, target_date: datetime) -> None:
     predictions: pd.DataFrame = get_model_predictions(scenario=scenario, model=model, features=features)
     predictions = predictions.drop_duplicates().reset_index(drop=True)
 
+    full_model_name: str = get_full_model_name(scenario=scenario, model_name=model_name, tuned=is_tuned)
+    tuned_or_not = "Tuned" if is_tuned else "Untuned" 
+
     predictions_feature_group = setup_feature_group(
         primary_key=primary_key,
         description=f"predicting {config.displayed_scenario_names[scenario]} - {tuned_or_not} {model_name}",

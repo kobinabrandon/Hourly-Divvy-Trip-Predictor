@@ -102,6 +102,7 @@ def make_features(
     """
     # Perform transformation of the time series data with feature engineering
     features = transform_ts_into_training_data(
+        for_inference=True,
         scenario=scenario, 
         ts_data=ts_data,
         geocode=geocode,
