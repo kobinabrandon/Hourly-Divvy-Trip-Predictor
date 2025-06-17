@@ -15,7 +15,9 @@ from datetime import datetime, timedelta
 from src.setup.config import config 
 from src.inference_pipeline.frontend.data import make_geodataframes
 from src.inference_pipeline.frontend.tracker import ProgressTracker
-from src.feature_pipeline.mixed_indexer import fetch_json_of_ids_and_names
+from src.feature_pipeline.preprocessing.station_indexing.mixed_indexer import fetch_json_of_ids_and_names
+
+
 from src.inference_pipeline.backend.inference import load_predictions_from_store
 
 
