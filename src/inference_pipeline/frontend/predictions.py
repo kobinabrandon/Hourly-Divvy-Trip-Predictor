@@ -33,7 +33,7 @@ def retrieve_predictions(from_hour: datetime, to_hour: datetime, model_name: str
     Returns:
         tuple[pd.DataFrame, pd.DataFrame]: a list of dataframes of predictions for both arrivals and departures
     """
-    prediction_dataframes: list[pd.DataFrame] =[]
+    prediction_dataframes: list[pd.DataFrame] = []
     for scenario in config.displayed_scenario_names.keys():                
 
         try:

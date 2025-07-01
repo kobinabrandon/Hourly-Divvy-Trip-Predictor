@@ -1,5 +1,3 @@
-import pandas as pd 
-
 from dotenv import load_dotenv
 from datetime import datetime, UTC
 from pydantic_settings import BaseSettings, SettingsConfigDict

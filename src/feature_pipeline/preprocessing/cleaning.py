@@ -30,10 +30,10 @@ def determine_path_to_cleaned_data(data: pd.DataFrame, for_inference: bool) -> P
 
 
 def clean(
-        data: pd.DataFrame, 
-        for_inference: bool, 
-        using_custom_station_indexing: bool, 
-        tie_ids_to_unique_coordinates: bool
+    data: pd.DataFrame, 
+    for_inference: bool, 
+    using_custom_station_indexing: bool, 
+    tie_ids_to_unique_coordinates: bool
 ) -> pd.DataFrame:
     """
 
