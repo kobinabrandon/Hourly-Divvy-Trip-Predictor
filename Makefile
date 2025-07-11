@@ -29,3 +29,7 @@ image:
 container:
 	docker run -it --env-file .env -p 8501:8501/tcp divvy-hourly:latest 
 
+push:
+	git push codeberg 
+	git push github 
+	git push rad

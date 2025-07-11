@@ -1,7 +1,6 @@
 .git
 .env 
 .gitignore
-.vscode
 
 ca_chain
 certfile

@@ -20,7 +20,8 @@ from src.feature_pipeline.preprocessing.core import make_training_data
 
 from src.training_pipeline.hyperparameter_tuning import tune_hyperparameters
 from src.setup.paths import TRAINING_DATA, LOCAL_SAVE_DIR, make_fundamental_paths
-from src.training_pipeline.models import get_model, push_model, get_full_model_name
+from src.training_pipeline.models import get_model, get_full_model_name
+from src.inference_pipeline.backend.model_registry import push_model
 from src.training_pipeline.cleanup import identify_best_model, delete_prior_project_from_comet, delete_best_model_from_previous_run 
 
 
@@ -38,7 +39,7 @@ def get_or_make_training_data(scenario: str) -> tuple[pd.DataFrame, pd.Series]:
         training_data: pd.DataFrame = pd.read_parquet(path=data_path)
         logger.success(f"Fetched saved training data for {config.displayed_scenario_names[scenario].lower()}")
     else:
-        logger.warning("No training data is storage. Creating the dataset will take a while.")
+        logger.warning("No training data in storage. Creating the dataset will take a while.")
 
         raw_data: pd.DataFrame = load_raw_data()
         training_sets = make_training_data(data=raw_data, for_inference=False, geocode=False)
@@ -137,9 +138,10 @@ def save_model_locally(scenario: str, model_fn: Pipeline, model_name: str, tuned
         model_name (str): the name of the model to be saved
     """
     logger.success("Saving model to disk")
-
     model_file_name = f"{model_name.title()} ({"Tuned" if tuned else "Untuned"} for {scenario}s).pkl"
-    with open(LOCAL_SAVE_DIR/model_file_name, mode="wb") as file:
+    path_to_pickle_file: Path = LOCAL_SAVE_DIR.joinpath(model_file_name)
+
+    with open(path_to_pickle_file, mode="wb") as file:
         pickle.dump(obj=model_fn, file=file)
 
 
@@ -165,8 +167,6 @@ def train_all_models(tuning_trials: int = config.tuning_trials):
                 models_and_errors[ (model_name, tuning_indicator) ] = error
 
         best_model_name: str = identify_best_model(scenario=scenario, models_and_errors=models_and_errors)
-        # breakpoint()
-
         register_model(scenario=scenario, model_name=best_model_name, status="production")
 
 

@@ -1,3 +1,4 @@
+import pandas as pd
 from dotenv import load_dotenv
 from datetime import datetime, UTC
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -20,7 +21,7 @@ class GeneralConfig(BaseSettings):
     email: str
     n_features: int = 672
 
-    # The number of months in the immediate past that for which we will retrieve data 
+    # The number of months in the immediate past for which we will retrieve data 
     offset: int = 6 
     tuning_trials: int = 10
 
