@@ -7,6 +7,8 @@ from loguru import logger
 from argparse import ArgumentParser
 from datetime import datetime, timedelta
 
+from sklearn.pipeline import Pipeline
+
 from src.setup.config import config
 from src.feature_pipeline.data_sourcing import load_raw_data 
 from src.feature_pipeline.preprocessing.core import make_time_series 
@@ -20,7 +22,6 @@ from src.inference_pipeline.backend.inference import (
 
 from src.inference_pipeline.backend.model_registry import download_model
 from src.inference_pipeline.backend.feature_store import setup_feature_group
-from src.training_pipeline.models import get_name_of_model_type, get_full_model_name 
 
 
 def backfill_features(scenario: str) -> None:
@@ -61,9 +62,9 @@ def backfill_predictions(scenario: str, target_date: datetime) -> None:
     
     # Based on the best models for arrivals & departures at the moment
     model_name: str = retrieve_best_model_from_previous_run(scenario=scenario)
-    is_tuned: bool = determine_whether_model_is_tuned_or_not(scenario=scenario, best_model=model_name)
+    tuned: bool = determine_whether_model_is_tuned_or_not(scenario=scenario, best_model=model_name)
 
-    model = download_model(scenario=scenario, model_name=model_name, tuned=is_tuned, unzip=True)
+    model: Pipeline = download_model(scenario=scenario, model_name=model_name, tuned=tuned, unzip=True)
     ts_feature_group = get_feature_group_for_time_series(scenario=scenario, primary_key=primary_key)
 
     features = fetch_time_series_and_make_features(
@@ -82,12 +83,11 @@ def backfill_predictions(scenario: str, target_date: datetime) -> None:
     predictions: pd.DataFrame = get_model_predictions(scenario=scenario, model=model, features=features)
     predictions = predictions.drop_duplicates().reset_index(drop=True)
 
-    full_model_name: str = get_full_model_name(scenario=scenario, model_name=model_name, tuned=is_tuned)
-    tuned_or_not = "Tuned" if is_tuned else "Untuned" 
+    tuned_string = "Tuned" if tuned else "Untuned" 
 
     predictions_feature_group = setup_feature_group(
         primary_key=primary_key,
-        description=f"predicting {config.displayed_scenario_names[scenario]} - {tuned_or_not} {model_name}",
+        description=f"predicting {config.displayed_scenario_names[scenario]} - {tuned_string} {model_name}",
         name=f"{model_name}_{scenario}_predictions",
         version=config.feature_group_version
     )
@@ -95,11 +95,11 @@ def backfill_predictions(scenario: str, target_date: datetime) -> None:
     predictions_feature_group.insert(write_options={"wait_for_job": True}, features=predictions)
 
 
-def determine_whether_model_is_tuned_or_not(scenario: str, best_model: str):
-
-    for tuned_or_not in [True, False]:
-        return False if "untuned" in best_model else True 
-            
+# def determine_whether_model_is_tuned_or_not(scenario: str, best_model: str):
+#
+#     for tuned_or_not in [True, False]:
+#         return False if "untuned" in best_model else True 
+#
  
 
 if __name__ == "__main__":

@@ -138,8 +138,8 @@ def tune_hyperparameters(
     best_hyperparams = study.best_params
     best_value = study.best_value
 
-    experiment.log_parameters(best_hyperparams)
-    experiment.log_metric(name="Best MAE Across Trials", value=best_value)
+    # experiment.log_parameters(best_hyperparams)
+    # experiment.log_metric(name="Best MAE Across Trials", value=best_value)
 
     logger.info(f"The best hyperparameters for the {model_name} model are: {best_hyperparams}")
     logger.success(f"Best MAE Across Trials: {best_value}")

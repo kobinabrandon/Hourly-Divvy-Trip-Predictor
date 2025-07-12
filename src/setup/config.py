@@ -30,8 +30,8 @@ class GeneralConfig(BaseSettings):
     feature_group_version: int = 1
     feature_view_version: int = 1
 
-    model_names: list[str] = ["lasso", "lightgbm", "xgboost"]
-    current_hour: datetime = pd.to_datetime(datetime.now(tz=UTC)).floor("H")
+    model_base_names: list[str] = ["lasso", "lightgbm", "xgboost"]
+    current_hour: datetime = pd.to_datetime(datetime.now(tz=UTC)).floor("h")
     displayed_scenario_names: dict[str, str] = {"start": "Departures", "end": "Arrivals"} 
 
     comet_api_key: str

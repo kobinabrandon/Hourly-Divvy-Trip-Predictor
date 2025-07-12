@@ -44,14 +44,14 @@ def identify_best_model(scenario: str, models_and_errors: dict[tuple[str, str], 
     smallest_test_error: float = min(models_and_errors.values())
     path_to_log_of_best_model_name: Path = MODELS_DIR.joinpath(f"best_{scenario}_model.txt")
 
-    for (model_name, tuned_or_not) in models_and_errors.keys():
+    for (model_name, tuned_string) in models_and_errors.keys():
         # Stop the loop if a model with the minimum error has been identified. This prevents 
         # the string from being concatenated when there are two models with the same error 
 
-        if len(best_model_name) > 0:  
-            break
-        elif models_and_errors[ (model_name, tuned_or_not) ] == smallest_test_error:
-            best_model_name += model_name + f"_{tuned_or_not}_{scenario}" 
+        tuned_bool = False if "untuned" in tuned_string else True
+        while len(best_model_name) == 0:
+            if models_and_errors[ (model_name, tuned_string) ] == smallest_test_error:
+                best_model_name = get_full_model_name(scenario=scenario, base_name=model_name, tuned=tuned_bool) 
 
     if len(best_model_name) == 0:
         raise Exception(
@@ -62,6 +62,7 @@ def identify_best_model(scenario: str, models_and_errors: dict[tuple[str, str], 
     with open(path_to_log_of_best_model_name, mode="w") as file:
         file.writelines(best_model_name)
 
+    logger.success(f"Saved {best_model_name} as a pickle file")
     return best_model_name
 
 
@@ -73,19 +74,19 @@ def delete_best_model_from_previous_run(scenario: str):
         scenario: "start" or "end" 
     """
     api = API(api_key=config.comet_api_key)
-    name_of_best_model_from_past_run: str = retrieve_best_model_from_previous_run(scenario=scenario) 
+    name_of_best_model_from_past_run: str| None = retrieve_best_model_from_previous_run(scenario=scenario) 
 
-    for tuned_or_not in [True, False]:
-        name_of_model_at_registry = get_full_model_name(scenario=scenario, model_name=name_of_best_model_from_past_run, tuned=tuned_or_not)
-
+    if name_of_best_model_from_past_run is None:
+        logger.error("Failed to discover the best model from the previous run")
+    else:
         try:
-            api.delete_registry_model(workspace=config.comet_workspace, registry_name=name_of_model_at_registry)
+            api.delete_registry_model(workspace=config.comet_workspace, registry_name=name_of_best_model_from_past_run)
 
         except Exception as error:
             logger.error(error)
 
 
-def retrieve_best_model_from_previous_run(scenario: str) -> str:
+def retrieve_best_model_from_previous_run(scenario: str) -> str | None:
     """
     During the training process, I saved a .txt file which contained the name of the best model. This string followed
     the format "{model_name}_{tuned_or_not}"
@@ -96,8 +97,13 @@ def retrieve_best_model_from_previous_run(scenario: str) -> str:
     Returns:
         
     """
-    with open(MODELS_DIR.joinpath(f"best_{scenario}_model.txt"), mode="r") as file:
-        model_name = file.read()
+    path_to_txt_containing_best_model_name = MODELS_DIR.joinpath(f"best_{scenario}_model.txt")
 
-    return model_name 
+    if path_to_txt_containing_best_model_name.exists():
+        with open(path_to_txt_containing_best_model_name, mode="r") as file:
+            model_name = file.read()
+
+        return model_name 
+    else:
+        None
 

@@ -29,23 +29,10 @@ def push_model(scenario: str, model_name: str, status: str, version: str) -> Non
     """
     running_experiment = get_global_experiment()
     experiment = ExistingExperiment(api_key=running_experiment.api_key, experiment_key=running_experiment.id)
+    model_file_path: Path = LOCAL_SAVE_DIR.joinpath(f"{model_name}.pkl")
 
     logger.info("Logging model to Comet ML")
-    # tuned: bool = "_tuned" in model_name
-
-    # Remove the suffix "_tuned" or "_untuned" that was added when we identified the best model 
-    # corrected_model_name: str = model_name.replace("_tuned" if tuned else "_untuned", "")  
-
-    # full_model_name = get_full_model_name(
-    #     scenario=scenario, 
-    #     model_name=corrected_model_name,
-    #     tuned=tuned
-    # )
-
-    model_file_path: Path = LOCAL_SAVE_DIR.joinpath(f"{model_name}.pkl")
-    breakpoint()
-    experiment.log_model(name=model_name, file_or_folder=str(model_file_path))
-    breakpoint()
+    _ = experiment.log_model(name=model_name, file_or_folder=str(model_file_path))
     logger.success(f"Finished logging the {model_name} model")
 
     logger.info(f'Pushing version {version} of the model to the registry under "{status.title()}"...')
@@ -66,11 +53,11 @@ def download_model(scenario: str, unzip: bool, tuned: bool, model_name: str) -> 
         Pipeline: the original model file
     """
     make_fundamental_paths()
-    full_model_name = get_full_model_name(
-        scenario=scenario, 
-        model_name=model_name, 
-        tuned="tuned" if tuned else "untuned"
-    )
+    # full_model_name = get_full_model_name(
+    #     scenario=scenario, 
+    #     model_name=model_name, 
+    #     tuned="tuned" if tuned else "untuned"
+    # )
 
     save_path: Path = COMET_SAVE_DIR.joinpath(f"{full_model_name}.pkl")
     registered_model_version = get_registered_model_version(full_model_name=full_model_name)
@@ -88,7 +75,6 @@ def download_model(scenario: str, unzip: bool, tuned: bool, model_name: str) -> 
         )
 
     model: Pipeline = load_local_model(
-        directory=COMET_SAVE_DIR,
         model_name=model_name,
         scenario=scenario,
         tuned_or_not="tuned" if tuned else "untuned"
