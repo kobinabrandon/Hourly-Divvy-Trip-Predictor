@@ -42,20 +42,23 @@ def identify_best_model(scenario: str, models_and_errors: dict[tuple[str, str], 
     """
     best_model_name = "" 
     smallest_test_error: float = min(models_and_errors.values())
+    path_to_log_of_best_model_name: Path = MODELS_DIR.joinpath(f"best_{scenario}_model.txt")
 
     for (model_name, tuned_or_not) in models_and_errors.keys():
-        # Stop the loop if a model with the minimum error has been identified. This prevents the 
-        # string from being concatenated when there are two models with the same error 
+        # Stop the loop if a model with the minimum error has been identified. This prevents 
+        # the string from being concatenated when there are two models with the same error 
 
         if len(best_model_name) > 0:  
             break
         elif models_and_errors[ (model_name, tuned_or_not) ] == smallest_test_error:
-            best_model_name += model_name + f"_{tuned_or_not}" 
+            best_model_name += model_name + f"_{tuned_or_not}_{scenario}" 
 
     if len(best_model_name) == 0:
-        raise Exception(f"Unable to identify model with best performance for {scenario}s. Did any models train in the first place?")
+        raise Exception(
+            f"""Unable to identify model with best performance for 
+            {scenario}s. Did any models train in the first place?"""
+        )
             
-    path_to_log_of_best_model_name: Path = MODELS_DIR.joinpath(f"best_{scenario}_model.txt")
     with open(path_to_log_of_best_model_name, mode="w") as file:
         file.writelines(best_model_name)
 

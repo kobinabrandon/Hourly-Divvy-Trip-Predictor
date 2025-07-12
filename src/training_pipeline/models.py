@@ -62,7 +62,7 @@ def load_local_model(directory: Path, model_name: str, scenario: str, tuned_or_n
         tuned=tuned_bool
     )
 
-    model_file_path: Path = f"{directory.joinpath(full_model_name)}.pkl"
+    model_file_path: Path = MODELS_DIR.joinpath(f"{directory.joinpath(full_model_name)}.pkl")
 
     with open(model_file_path, "rb") as file:
         return pickle.load(file)

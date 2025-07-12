@@ -31,23 +31,25 @@ def push_model(scenario: str, model_name: str, status: str, version: str) -> Non
     experiment = ExistingExperiment(api_key=running_experiment.api_key, experiment_key=running_experiment.id)
 
     logger.info("Logging model to Comet ML")
-    tuned: bool = "_tuned" in model_name
+    # tuned: bool = "_tuned" in model_name
 
     # Remove the suffix "_tuned" or "_untuned" that was added when we identified the best model 
-    corrected_model_name: str = model_name.replace("_tuned" if tuned else "_untuned", "")  
+    # corrected_model_name: str = model_name.replace("_tuned" if tuned else "_untuned", "")  
 
-    full_model_name = get_full_model_name(
-        scenario=scenario, 
-        model_name=corrected_model_name,
-        tuned=tuned
-    )
+    # full_model_name = get_full_model_name(
+    #     scenario=scenario, 
+    #     model_name=corrected_model_name,
+    #     tuned=tuned
+    # )
 
-    model_file_name: Path = LOCAL_SAVE_DIR.joinpath(f"{full_model_name}.pkl")
-    _ = experiment.log_model(name=full_model_name, file_or_folder=str(model_file_name))
+    model_file_path: Path = LOCAL_SAVE_DIR.joinpath(f"{model_name}.pkl")
+    breakpoint()
+    experiment.log_model(name=model_name, file_or_folder=str(model_file_path))
+    breakpoint()
     logger.success(f"Finished logging the {model_name} model")
 
     logger.info(f'Pushing version {version} of the model to the registry under "{status.title()}"...')
-    _ = experiment.register_model(model_name=full_model_name, status=status, version=version)
+    _ = experiment.register_model(model_name=model_name, status=status, version=version)
 
 
 def download_model(scenario: str, unzip: bool, tuned: bool, model_name: str) -> Pipeline:

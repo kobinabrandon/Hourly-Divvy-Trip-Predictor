@@ -137,12 +137,13 @@ def save_model_locally(scenario: str, model_fn: Pipeline, model_name: str, tuned
         model_fn (Pipeline): the model object to be stored
         model_name (str): the name of the model to be saved
     """
-    logger.success("Saving model to disk")
     model_file_name = f"{model_name.title()} ({"Tuned" if tuned else "Untuned"} for {scenario}s).pkl"
     path_to_pickle_file: Path = LOCAL_SAVE_DIR.joinpath(model_file_name)
 
     with open(path_to_pickle_file, mode="wb") as file:
         pickle.dump(obj=model_fn, file=file)
+
+    logger.info(f"Saved {model_name} to disk")
 
 
 def train_all_models(tuning_trials: int = config.tuning_trials):
