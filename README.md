@@ -42,9 +42,9 @@ A containerised version of the app is available [here](https://melodious-wisdom-
     $ git clone https://github.com/maadabrandon/Hourly-Divvy-Trip-Predictor
     ```
 
-2. Install [Poetry](https://python-poetry.org/)
+2. Install [UV]()
    ```
-   $ curl -sSL https://install.python-poetry.org | python3 -
+   $ curl -LsSf https://astral.sh/uv/install.sh | sh  (unix-based systems)
    ```
 
 3. Enter the project directory and run:
@@ -55,13 +55,14 @@ A containerised version of the app is available [here](https://melodious-wisdom-
 4. Register free accounts on [Hopsworks](https://c.app.hopsworks.ai/) and [CometML](https://www.comet.com/). 
    Then copy your project names(for both platforms), API keys(again for both platforms), Comet workspace name, and email address into a .env file.
 
-5. Backfill the Hopsworks feature groups with historical data:
+5. Run the training pipeline:
     ```
-    $ make backfill-features
+    $ make training-data
+    $ make train
     ```
-6. Run the training pipeline:
+6. Backfill the Hopsworks feature groups with historical data:
     ```
-    $ make train-all
+    $ make backfill-features  
     ```
 7. Backfill the Hopsworks feature groups with predictions:
     ```

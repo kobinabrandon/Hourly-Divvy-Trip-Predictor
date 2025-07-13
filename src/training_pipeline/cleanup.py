@@ -29,10 +29,12 @@ def delete_prior_project_from_comet(delete_experiments: bool = True):
 
 def identify_best_model(scenario: str, models_and_errors: dict[tuple[str, str], float]) -> str: 
     """
+    Go through all the models that have been trained on the named scenario's data, find the best 
+    performer, and return its full name
 
     Args:
-        scenario: 
-        models_and_errors: 
+        scenario: "start" or "end" 
+        models_and_errors: a dictionary with model names as keys and the associated errors as values 
 
     Returns:
         
@@ -73,7 +75,7 @@ def delete_best_model_from_previous_run(scenario: str):
         scenario: "start" or "end" 
     """
     api = API(api_key=config.comet_api_key)
-    name_of_best_model_from_past_run: str| None = retrieve_best_model_from_previous_run(scenario=scenario) 
+    name_of_best_model_from_past_run: str| None = retrieve_name_of_best_model_from_previous_run(scenario=scenario) 
 
     if name_of_best_model_from_past_run is None:
         logger.error("Failed to discover the best model from the previous run")
@@ -85,7 +87,7 @@ def delete_best_model_from_previous_run(scenario: str):
             logger.error(error)
 
 
-def retrieve_best_model_from_previous_run(scenario: str) -> str | None:
+def retrieve_name_of_best_model_from_previous_run(scenario: str) -> str | None:
     """
     During the training process, I saved a .txt file which contained the name of the best model. This string followed
     the format "{model_name}_{tuned_or_not}"
@@ -94,7 +96,7 @@ def retrieve_best_model_from_previous_run(scenario: str) -> str | None:
         scenario: "start" or "end"
 
     Returns:
-        
+        Either the name of the model or None
     """
     path_to_txt_containing_best_model_name = MODELS_DIR.joinpath(f"best_{scenario}_model.txt")
 

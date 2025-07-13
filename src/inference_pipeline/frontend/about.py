@@ -18,7 +18,7 @@ with col2:
 st.markdown(
     """
     Hi there! My name is Kobina, and I'm a mathematician and Machine Learning Engineer.
-    Thanks for using the service. You can view its code [here](https://www.codeberg.org/kobinabrandon/Hourly-Divvy-Trip-Predictor).
+    Thanks for using the service. You can view its code [here](https://app.radicle.xyz/nodes/kobina.seednode.xyz/rad:zVhC4MGvgB8YMjvBuBNoQsSGtac6).
 
     Making this application was quite the adventure, and it's been a very rewarding experience that has taught me a great deal. 
     I'll continue to maintain and improve the system, and I hope that Lyft continue to provide data on a monthly basis. 
@@ -29,7 +29,7 @@ st.markdown(
     If you have data, and some ideas about how a AI/ML application can be built around it to bring value to your business, 
     consider reaching out to me.
     
-    You can find a link to my publicly available work [here](http://www.codeberg.org/kobinabrandon), and my 
+    You can find a link to my publicly available work [here](https://app.radicle.xyz/nodes/kobina.seednode.xyz/rad:zVhC4MGvgB8YMjvBuBNoQsSGtac6), and my 
     LinkedIn [here](https://www.linkedin.com/in/kobina-brandon-aa9445134).
     """
 )

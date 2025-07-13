@@ -9,7 +9,7 @@ from sklearn.pipeline import Pipeline
 from comet_ml import ExistingExperiment, get_global_experiment, API
 
 from src.setup.config import config
-from src.training_pipeline.models import load_local_model
+from src.training_pipeline.models import get_full_model_name, load_local_model
 from src.setup.paths import COMET_SAVE_DIR, LOCAL_SAVE_DIR, make_fundamental_paths
 
 
@@ -39,27 +39,19 @@ def push_model(full_model_name: str, status: str, version: str) -> None:
     _ = experiment.register_model(model_name=full_model_name, status=status, version=version)
 
 
-def download_model(scenario: str, unzip: bool, tuned: bool, model_name: str) -> Pipeline:
+def download_model(full_model_name: str) -> Pipeline:
     """
     Download the latest version of the requested model to the MODEL_DIR directory,
     load the file using pickle, and return it.
 
     Args:
-        tuned: 
-        model_name: 
-        unzip: whether to unzip the downloaded zipfile.
+        full_model_name: the full name of the model 
 
     Returns:
         Pipeline: the original model file
     """
     make_fundamental_paths()
-    # full_model_name = get_full_model_name(
-    #     scenario=scenario, 
-    #     model_name=model_name, 
-    #     tuned="tuned" if tuned else "untuned"
-    # )
-
-    save_path: Path = COMET_SAVE_DIR.joinpath(f"{full_model_name}.pkl")
+    save_path: Path = COMET_SAVE_DIR.joinpath(f"{full_model_name}")
     registered_model_version = get_registered_model_version(full_model_name=full_model_name)
 
     if not save_path.exists():
@@ -71,15 +63,10 @@ def download_model(scenario: str, unzip: bool, tuned: bool, model_name: str) -> 
             registry_name=full_model_name,
             version=registered_model_version,
             output_path=str(COMET_SAVE_DIR),
-            expand=unzip
+            expand="unzip"  # Unzip the downloaded zipfile.
         )
 
-    model: Pipeline = load_local_model(
-        model_name=model_name,
-        scenario=scenario,
-        tuned_or_not="tuned" if tuned else "untuned"
-    )
-    
+    model: Pipeline = load_local_model(full_model_name=full_model_name)
     return model
 
 

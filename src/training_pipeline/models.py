@@ -32,7 +32,7 @@ def get_model(model_name: str) -> Lasso | LGBMRegressor | XGBRegressor:
         raise Exception("Provided improper model name")
 
 
-def load_local_model(base_name: str, scenario: str, tuned_or_not: str) -> Pipeline:
+def load_local_model(full_model_name: str) -> Pipeline:
     """
     Allows for model objects that have been downloaded from the model registry, or saved locally to be loaded
     and returned for inference. It was important that the function be global and that it allow models to be 
@@ -50,9 +50,7 @@ def load_local_model(base_name: str, scenario: str, tuned_or_not: str) -> Pipeli
     if not Path(MODELS_DIR).exists():
         make_fundamental_paths()
 
-    tuned_bool = True if tuned_or_not.lower() == "tuned" else False  
-    model_name = get_full_model_name(scenario=scenario, base_name=base_name, tuned=tuned_bool)
-    model_file_path: Path = COMET_SAVE_DIR.joinpath(f"{model_name}.pkl")
+    model_file_path: Path = COMET_SAVE_DIR.joinpath(f"{full_model_name}")
 
     with open(model_file_path, "rb") as file:
         return pickle.load(file)

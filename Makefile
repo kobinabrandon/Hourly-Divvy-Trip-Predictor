@@ -1,8 +1,6 @@
-# Preprocessing
 training-data:
 	uv run src/feature_pipeline/preprocessing/core.py 
 
-# Model Training
 train:
 	uv run src/training_pipeline/training.py 
 
@@ -13,13 +11,6 @@ backfill-features:
 backfill-predictions:
 	uv run src/inference_pipeline/backend/backfill_feature_store.py --scenarios start end --target predictions
 	
-backfill-all: backfill-features backfill-predictions	
-
-
-# Frontend
-frontend:
-	uv run streamlit run src/inference_pipeline/frontend/main.py --server.port 8501
-
 start-docker:
 	sudo systemctl start docker
 
@@ -32,4 +23,7 @@ container:
 push-main:
 	git push -u codeberg main 
 	git push rad main 
+
+frontend:
+	uv run streamlit run src/inference_pipeline/frontend/main.py --server.port 8501
 
