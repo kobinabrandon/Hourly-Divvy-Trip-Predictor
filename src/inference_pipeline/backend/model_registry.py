@@ -5,16 +5,15 @@ from typing import Any
 from pathlib import Path
 
 from loguru import logger
-from numpy import full
 from sklearn.pipeline import Pipeline
 from comet_ml import ExistingExperiment, get_global_experiment, API
 
 from src.setup.config import config
-from src.training_pipeline.models import load_local_model, get_full_model_name
+from src.training_pipeline.models import load_local_model
 from src.setup.paths import COMET_SAVE_DIR, LOCAL_SAVE_DIR, make_fundamental_paths
 
 
-def push_model(scenario: str, model_name: str, status: str, version: str) -> None:
+def push_model(full_model_name: str, status: str, version: str) -> None:
     """
     Find the model (saved locally), log it to CometML, and register it at the model registry.
 
@@ -29,14 +28,15 @@ def push_model(scenario: str, model_name: str, status: str, version: str) -> Non
     """
     running_experiment = get_global_experiment()
     experiment = ExistingExperiment(api_key=running_experiment.api_key, experiment_key=running_experiment.id)
-    model_file_path: Path = LOCAL_SAVE_DIR.joinpath(f"{model_name}.pkl")
+    # breakpoint()
+    model_file_path: Path = LOCAL_SAVE_DIR.joinpath(f"{full_model_name}")
 
     logger.info("Logging model to Comet ML")
-    _ = experiment.log_model(name=model_name, file_or_folder=str(model_file_path))
-    logger.success(f"Finished logging the {model_name} model")
+    _ = experiment.log_model(name=full_model_name, file_or_folder=str(model_file_path))
+    logger.success(f"Finished logging the {full_model_name} model")
 
     logger.info(f'Pushing version {version} of the model to the registry under "{status.title()}"...')
-    _ = experiment.register_model(model_name=model_name, status=status, version=version)
+    _ = experiment.register_model(model_name=full_model_name, status=status, version=version)
 
 
 def download_model(scenario: str, unzip: bool, tuned: bool, model_name: str) -> Pipeline:

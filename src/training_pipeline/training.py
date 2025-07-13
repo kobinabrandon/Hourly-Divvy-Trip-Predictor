@@ -21,7 +21,7 @@ from src.inference_pipeline.backend.model_registry import push_model
 from src.training_pipeline.models import get_full_model_name, get_model 
 from src.training_pipeline.hyperparameter_tuning import tune_hyperparameters
 from src.setup.paths import TRAINING_DATA, LOCAL_SAVE_DIR, make_fundamental_paths
-from src.training_pipeline.cleanup import identify_best_model, delete_prior_project_from_comet, delete_best_model_from_previous_run 
+from src.training_pipeline.cleanup import delete_local_saves, identify_best_model, delete_prior_project_from_comet, delete_best_model_from_previous_run 
 
 
 def get_or_make_training_data(scenario: str) -> tuple[pd.DataFrame, pd.Series]:
@@ -156,11 +156,12 @@ def train_all_models(tuning_trials: int = config.tuning_trials):
     make_fundamental_paths()  # Ensure that all the necessary directories exist.
     delete_prior_project_from_comet() 
 
-    for scenario in ["start"]:
+    delete_local_saves()
+    for scenario in ["start", "end"]:
         models_and_errors: dict[tuple[str, str], float] = {}
         delete_best_model_from_previous_run(scenario=scenario)
 
-        for tune_or_not in [False]:
+        for tune_or_not in [False, True]:
             for base_name in config.model_base_names:
                 error = train(scenario=scenario, base_name=base_name, tune=tune_or_not, tuning_trials=tuning_trials)
                 tuning_indicator: str = "untuned" if not tune_or_not else "tuned"
@@ -168,7 +169,7 @@ def train_all_models(tuning_trials: int = config.tuning_trials):
 
         best_model_name: str = identify_best_model(scenario=scenario, models_and_errors=models_and_errors)
         logger.info(f"The best performing model for {scenario}s is {best_model_name} -> Pushing it to the CometML model registry")
-        push_model(scenario=scenario, model_name=best_model_name, status="Production", version="1.0.0")
+        push_model(full_model_name=best_model_name, status="Production", version="1.0.0")
 
 
 if __name__ == "__main__":

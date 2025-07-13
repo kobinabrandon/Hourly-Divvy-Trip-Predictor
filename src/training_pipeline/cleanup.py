@@ -2,13 +2,13 @@
 This module contains the code that cleans up project data from Comet's experiment tracker, and 
 and model data from its model registry. 
 """
-
+import os
 from pathlib import Path
 from comet_ml import API
 from loguru import logger
 
 from src.setup.config import config
-from src.setup.paths import MODELS_DIR
+from src.setup.paths import LOCAL_SAVE_DIR, MODELS_DIR
 from src.training_pipeline.models import get_full_model_name
 
 
@@ -49,9 +49,8 @@ def identify_best_model(scenario: str, models_and_errors: dict[tuple[str, str], 
         # the string from being concatenated when there are two models with the same error 
 
         tuned_bool = False if "untuned" in tuned_string else True
-        while len(best_model_name) == 0:
-            if models_and_errors[ (model_name, tuned_string) ] == smallest_test_error:
-                best_model_name = get_full_model_name(scenario=scenario, base_name=model_name, tuned=tuned_bool) 
+        if len(best_model_name) == 0 and models_and_errors[ (model_name, tuned_string) ] == smallest_test_error:
+            best_model_name += get_full_model_name(scenario=scenario, base_name=model_name, tuned=tuned_bool) 
 
     if len(best_model_name) == 0:
         raise Exception(
@@ -106,4 +105,10 @@ def retrieve_best_model_from_previous_run(scenario: str) -> str | None:
         return model_name 
     else:
         None
+
+
+def delete_local_saves():
+    logger.warning("Deleting locally saved models")
+    for file in os.listdir(LOCAL_SAVE_DIR):
+        os.remove(LOCAL_SAVE_DIR.joinpath(file))
 
