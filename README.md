@@ -39,7 +39,7 @@ A containerised version of the app is available [here](https://melodious-wisdom-
 
 1. Clone the repository:
     ```
-    $ git clone https://github.com/maadabrandon/Hourly-Divvy-Trip-Predictor
+    $ git clone https://kobina.seednode.xyz/zVhC4MGvgB8YMjvBuBNoQsSGtac6.git hourly-divvy-trip-predictor
     ```
 
 2. Install [UV]()
