@@ -12,7 +12,7 @@ import pandas as pd
 from loguru import logger
 
 from sklearn.pipeline import Pipeline
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from hsfs.feature_group import FeatureGroup
 from hsfs.feature_view import FeatureView
@@ -22,6 +22,7 @@ from src.setup.paths import ROUNDING_INDEXER, MIXED_INDEXER
 from src.feature_pipeline.preprocessing.core import make_training_data
 from src.inference_pipeline.backend.feature_store import setup_feature_group, get_or_create_feature_view
 from src.feature_pipeline.preprocessing.transformations.training_data import transform_ts_into_training_data
+from src.training_pipeline.cleanup import retrieve_name_of_best_model_from_previous_run
 
 
 def get_feature_group_for_time_series(scenario: str, primary_key: list[str]) -> FeatureGroup:
@@ -125,15 +126,18 @@ def fetch_predictions_group(scenario: str, model_name: str) -> FeatureGroup:
     Returns:
         FeatureGroup: the feature group for the given model's predictions.
     """
-    assert model_name == "xgboost", 'The selected model architectures are currently "xgboost" and "lightgbm"'
-    tuned_or_not = "tuned" 
-       
-    return setup_feature_group(
-        primary_key=[f"{scenario}_station_id"],
-        description=f"predictions on {scenario} data using the {tuned_or_not} {model_name}",
-        name=f"{model_name}_{scenario}_predictions",
-        version=config.feature_group_version
-    )
+    full_model_name: str|None = retrieve_name_of_best_model_from_previous_run(scenario=scenario)
+    if full_model_name == None:
+        raise Exception("Failed to retrieve the name of the best model from the previous run")
+    else:
+        tuned_or_not: str = "untuned" if "untuned" in full_model_name else "tuned" 
+           
+        return setup_feature_group(
+            primary_key=[f"{scenario}_station_id"],
+            description=f"predictions on {scenario} data using the {tuned_or_not} {model_name}",
+            name=f"{full_model_name}_predictions",
+            version=config.feature_group_version
+        )
 
 
 def load_predictions_from_store(
@@ -199,14 +203,12 @@ def get_model_predictions(scenario: str, model: Pipeline, features: pd.DataFrame
     Returns:
         pd.DataFrame: the model's predictions
     """
-    generated_predictions = model.predict(features)
-
     prediction_per_station = pd.DataFrame()
+    generated_predictions = model.predict(features)
     prediction_per_station[f"{scenario}_station_id"] = features[f"{scenario}_station_id"].values
 
-    prediction_per_station[f"{scenario}_hour"] = pd.to_datetime(datetime.utcnow()).floor("H")
     prediction_per_station[f"predicted_{scenario}s"] = generated_predictions.round(decimals=0)
-
+    prediction_per_station[f"{scenario}_hour"] = pd.to_datetime(datetime.now(timezone.utc)).floor("H")
     prediction_per_station["timestamp"] = pd.to_datetime(prediction_per_station[f"{scenario}_hour"]).astype(int) // 10 ** 6  # Express in ms
 
     return prediction_per_station
@@ -229,7 +231,6 @@ def get_aggregate_predictions(scenario: str, predictions: pd.DataFrame, aggregat
 
 def round_mean_by_scenario(scenario: str, predicted_values: pd.Series): 
     return np.ceil(predicted_values) if scenario == "start" else None
-
 
 
 def rerun_feature_pipeline():

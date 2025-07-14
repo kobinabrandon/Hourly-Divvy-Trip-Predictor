@@ -105,8 +105,6 @@ def retrieve_name_of_best_model_from_previous_run(scenario: str) -> str | None:
             model_name = file.read()
 
         return model_name 
-    else:
-        None
 
 
 def delete_local_saves():

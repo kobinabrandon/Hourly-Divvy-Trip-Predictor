@@ -89,7 +89,7 @@ def backfill_predictions(scenario: str, target_date: datetime) -> None:
         predictions_feature_group = setup_feature_group(
             primary_key=primary_key,
             description=f"predicting {config.displayed_scenario_names[scenario]} - {tuned_string} {full_model_name}",
-            name=f"{full_model_name}_{scenario}_predictions",
+            name=f"{full_model_name}_predictions",
             version=config.feature_group_version
         )
 
