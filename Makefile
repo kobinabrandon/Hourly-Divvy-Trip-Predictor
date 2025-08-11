@@ -31,6 +31,7 @@ container:
 
 # Git
 push-main:
+	git push -u github main 
 	git push -u codeberg main 
 	git push rad main 
 
