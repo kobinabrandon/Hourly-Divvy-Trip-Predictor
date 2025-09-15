@@ -8,25 +8,11 @@ from datetime import datetime
 
 from src.setup.paths import CLEANED_DATA 
 from src.setup.config import get_proper_scenario_name 
-from src.feature_pipeline.preprocessing.station_indexing.choice import check_if_we_use_custom_station_indexing, check_if_we_tie_ids_to_unique_coordinates 
 
-
-def determine_path_to_cleaned_data(data: pd.DataFrame, for_inference: bool) -> Path:
-
-    if for_inference:
-        return CLEANED_DATA.joinpath("partially_cleaned_data_for_inference.parquet")
-
-    else:
-        tie_ids_to_unique_coordinates: bool = check_if_we_tie_ids_to_unique_coordinates(data=data, for_inference=for_inference)
-        using_custom_station_indexing: bool = check_if_we_use_custom_station_indexing(data=data, for_inference=for_inference)  
-
-        match (using_custom_station_indexing, tie_ids_to_unique_coordinates):
-            case (True, True):
-                return CLEANED_DATA.joinpath("data_with_newly_indexed_stations (rounded_indexer).parquet")
-            case (True, False):
-                return CLEANED_DATA.joinpath("data_with_newly_indexed_stations (mixed_indexer).parquet")
-            case (False, _):
-                raise NotImplementedError("The majority of Divvy's IDs weren't numerical and valid during initial development.")
+from src.feature_pipeline.preprocessing.station_indexing.choice import (
+    check_if_we_use_custom_station_indexing, 
+    check_if_we_tie_ids_to_unique_coordinates 
+)
 
 
 def clean(
@@ -36,23 +22,19 @@ def clean(
     tie_ids_to_unique_coordinates: bool
 ) -> pd.DataFrame:
     """
-
     Args:
-        data: 
-        using_custom_station_indexing: bool, 
-        tie_ids_to_unique_coordinates: bool 
+        data: the data to be cleaned 
+        using_custom_station_indexing: whether we will use a custom method of idexing station, 
+        tie_ids_to_unique_coordinates: whether to associate IDs with specific coordinates 
 
     Returns:
-
-    Raises:
-        NotImplementedError: 
     """
 
     path_to_cleaned_data = determine_path_to_cleaned_data(data=data, for_inference=for_inference)
     
     # Will think of a more elegant solution in due course. This only serves my current interests.
     if path_to_cleaned_data.is_file():
-        logger.success("There is already some cleaned data. Fetching it...")
+        logger.success("There is already some cleaned data...")
         cleaned_data: pd.DataFrame = pd.read_parquet(path=path_to_cleaned_data)
 
         if cleaned_data_needs_update(cleaned_data=cleaned_data):
@@ -75,6 +57,24 @@ def clean(
     return data_with_missing_details_removed
 
 
+def determine_path_to_cleaned_data(data: pd.DataFrame, for_inference: bool) -> Path:
+
+    if for_inference:
+        return CLEANED_DATA.joinpath("partially_cleaned_data_for_inference.parquet")
+
+    else:
+        tie_ids_to_unique_coordinates: bool = check_if_we_tie_ids_to_unique_coordinates(data=data, for_inference=for_inference)
+        using_custom_station_indexing: bool = check_if_we_use_custom_station_indexing(data=data, for_inference=for_inference)  
+
+        match (using_custom_station_indexing, tie_ids_to_unique_coordinates):
+            case (True, True):
+                return CLEANED_DATA.joinpath("data_with_newly_indexed_stations (rounded_indexer).parquet")
+            case (True, False):
+                return CLEANED_DATA.joinpath("data_with_newly_indexed_stations (mixed_indexer).parquet")
+            case (False, _):
+                raise NotImplementedError("The majority of Divvy's IDs weren't numerical and valid during initial development.")
+
+
 def cleaned_data_needs_update(cleaned_data: pd.DataFrame) -> bool:
     """
     The primary purpose of this function is to determine whether a saved version of a cleaned dataset is up to 
@@ -90,32 +90,34 @@ def cleaned_data_needs_update(cleaned_data: pd.DataFrame) -> bool:
     regardless of how many days have passed 
 
     Args:
-        cleaned_data: 
+        cleaned_data: a dataframe consisting of data that was cleaned and saved in the past 
 
     Returns:
         
     """
-    this_month: datetime = datetime.now().month
+    this_month: int = datetime.now().month
     most_recent_date_in_data: datetime = cleaned_data["started_at"].sort_values().iloc[-1]
     last_month_in_data: int = most_recent_date_in_data.month  
+
     last_year_in_data: int = most_recent_date_in_data.year  
     data_is_old: bool = last_month_in_data < this_month 
 
-    # New data will be deemed to be available if data is available for the month following the last month in
+    logger.warning("Checking for new data") 
+    # New data will be deemed to be available if data is available for the month after the final month in the data
     new_data_url: str = f"https://divvy-tripdata.s3.amazonaws.com/{last_year_in_data}{last_month_in_data + 1:02d}-divvy-tripdata.zip"
-    new_data_is_available: bool = requests.get(new_data_url).status_code == 200
+    new_data_is_available: bool = requests.head(new_data_url).status_code == 200
 
     match (data_is_old, new_data_is_available):
         case (False, _):
-            logger.info("Cleaned data for is up to date")
+            logger.info("Existing cleaned data is up to date")
             return False 
 
         case (True, True):
-            logger.info("Cleaned data for out of date, and new data is available")
+            logger.info("Saved cleaned data is out of date, New data is available,")
             return True
 
         case (True, False):
-            logger.info("Cleaned data for out of date, but new data is not available")
+            logger.info("Saved cleaned data is out of date, but new data is not available")
             return False 
 
 
