@@ -67,6 +67,7 @@ jobs:
         
         DATABASE_PUBLIC_URL: ${{ secrets.DATABASE_PUBLIC_URL }} 
 
+        HOPSWORKS_HOST: ${{ secrets.HOPSWORKS_HOST }}
         HOPSWORKS_PROJECT_NAME: ${{ secrets.HOPSWORKS_PROJECT_NAME }}
         HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
 
