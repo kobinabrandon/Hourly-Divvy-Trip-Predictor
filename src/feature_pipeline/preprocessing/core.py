@@ -93,3 +93,4 @@ if __name__ == "__main__":
     make_fundamental_paths()
     raw_data: pd.DataFrame = load_raw_data()
     training_data = make_training_data(data=raw_data, for_inference=False, geocode=False) 
+

@@ -7,6 +7,7 @@ keyfile
 
 # Folders
 /.venv
+/models
 /data/cleaned
 /data/raw
 /data/transformed

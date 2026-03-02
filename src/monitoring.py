@@ -40,10 +40,8 @@ def load_predictions_and_historical_trips(
     arrivals_or_departures: str = config.displayed_scenario_names[scenario].lower()
 
     predictions_fg = setup_feature_group(
-        scenario=scenario,
         description=f"predicting {arrivals_or_departures} - {tuned_or_not} {model_name}",
         name=f"{model_name}_{scenario}_predictions_feature_group",
-        for_predictions=True,
         primary_key=[f"{scenario}_station_id"],
         version=6
     )
@@ -53,7 +51,6 @@ def load_predictions_and_historical_trips(
         primary_key=["timestamp", f"{scenario}_station_id"],
         version=config.feature_group_version,
         name=f"{scenario}_feature_group",
-        for_predictions=False
     ) 
 
     query = (

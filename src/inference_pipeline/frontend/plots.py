@@ -66,7 +66,7 @@ def plot_for_one_station(
     all_dates = pd.date_range(
         start=trip_hour - timedelta(hours=len(columns_of_past_trips)),
         end=trip_hour,
-        freq="H" 
+        freq="h" 
     )
 
     st.subheader(f":blue[Station] Location: {station_name}" if display_title else None)

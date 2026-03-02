@@ -33,7 +33,7 @@ Build a complete end-to-end machine learning system that culminates in a simple 
 - Github actions are used to backfill the feature store with new predictions every hour.
 
 ## Use the App
-A containerised version of the app is available [here](https://melodious-wisdom-production-2431.up.railway.app/).
+A containerised version of the app is available [here](https://www.hourly-divvy-trip-predictor-production.up.railway.app).
 
 ## Alternatively, you can build the project locally by doing the following:
 
@@ -42,7 +42,7 @@ A containerised version of the app is available [here](https://melodious-wisdom-
     $ git clone https://kobina.seednode.xyz/zVhC4MGvgB8YMjvBuBNoQsSGtac6.git hourly-divvy-trip-predictor
     ```
 
-2. Install [UV]()
+2. Install UV
    ```
    $ curl -LsSf https://astral.sh/uv/install.sh | sh  (unix-based systems)
    ```

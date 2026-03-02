@@ -5,29 +5,27 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "comet-ml>=3.49.6",
-    "confluent-kafka>=2.8.2",
+    "comet-ml>=3.56.0",
+    "confluent-kafka>=2.13.0",
     "geopy>=2.4.1",
-    "hopsworks>=4.1.8",
+    "hopsworks==4.7.2",
     "lightgbm>=4.6.0",
     "loguru>=0.7.3",
-    "numpy==1.26.4",
-    "optuna>=4.2.1",
-    "pandas>=2.1.1",
-    "psycopg2-binary>=2.9.10",
-    "pydantic-settings>=2.8.1",
-    "python-dotenv>=1.1.0",
-    "requests>=2.32.3",
-    "scikit-learn>=1.6.1",
-    "setuptools>=78.1.0",
-    "sqlalchemy>=2.0.29",
-    "streamlit>=1.44.0",
+    "numpy>=2.4.2",
+    "optuna>=4.7.0",
+    "pandas==2.3.3",
+    "psycopg2-binary>=2.9.11",
+    "pydantic-settings>=2.13.1",
+    "requests>=2.32.5",
+    "scikit-learn>=1.8.0",
+    "setuptools>=82.0.0",
+    "sqlalchemy>=2.0.41",
+    "streamlit==1.53.1",
     "streamlit-extras>=0.6.0",
-    "tqdm>=4.67.1",
-    "xgboost>=3.0.0",
+    "tqdm>=4.67.3",
+    "xgboost>=3.2.0",
 ]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-
