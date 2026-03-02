@@ -52,7 +52,6 @@ jobs:
         
         echo DATABASE_PUBLIC_URL = ${{ secrets.DATABASE_PUBLIC_URL }} > .env
 
-        echo HOPSWORKS_HOST = ${{ secrets.HOPSWORKS_HOST }} > .env
         echo HOPSWORKS_PROJECT_NAME = ${{ secrets.HOPSWORKS_PROJECT_NAME }} > .env
         echo HOPSWORKS_API_KEY = ${{ secrets.HOPSWORKS_API_KEY }} > .env
 
@@ -67,7 +66,6 @@ jobs:
         
         DATABASE_PUBLIC_URL: ${{ secrets.DATABASE_PUBLIC_URL }} 
 
-        HOPSWORKS_HOST: ${{ secrets.HOPSWORKS_HOST }}
         HOPSWORKS_PROJECT_NAME: ${{ secrets.HOPSWORKS_PROJECT_NAME }}
         HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
 

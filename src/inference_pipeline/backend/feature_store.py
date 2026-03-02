@@ -20,7 +20,7 @@ def get_feature_store() -> FeatureStore:
         FeatureStore: pointer to the feature store
     """
     project = hopsworks.login(
-        host="eu-west.cloud.hopsworks.ai",       
+        host="eu-west.cloud.hopsworks.ai", 
         project=config.hopsworks_project_name, 
         api_key_value=config.hopsworks_api_key
     )
