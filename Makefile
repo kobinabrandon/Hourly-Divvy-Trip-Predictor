@@ -5,7 +5,7 @@ training-data:
 	uv run  src/feature_pipeline/preprocessing/core.py 
 
 frontend:
-	uv run  streamlit run src/inference_pipeline/frontend/main.py --server.port 8501
+	uv run  streamlit run src/inference_pipeline/frontend/main.py --server.port 8510
 
 
 # Backfilling the Feature Store

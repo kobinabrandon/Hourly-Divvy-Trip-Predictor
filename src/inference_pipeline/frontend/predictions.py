@@ -105,13 +105,9 @@ def retrieve_predictions_for_this_hour(
         if next_hour_ready: 
             # Save in case the latest prediction is unavailable at a future time
             predictions_for_target_hour: pd.DataFrame = predictions[predictions[f"{scenario}_hour"] == to_hour]
-            backup_predictions_to_postgres(table_name=f"{scenario}_backup_predictions", data=predictions_for_target_hour)
         
         elif previous_hour_ready:
             predictions_for_target_hour = predictions[predictions[f"{scenario}_hour"] == from_hour]
-
-            # Just to increase the chances that a backup will be available, though it may be redundant
-            backup_predictions_to_postgres(table_name=f"{scenario}_backup_predictions", data=predictions_for_target_hour)
 
             if scenario == "start":  
                 st.write("Predictions for the current hour are not available yet. Fetching those from an hour ago.")
@@ -157,7 +153,7 @@ def restrict_geodataframe_to_stations_with_predictions(
     """
     Depending on how many days of time series data is fetched during inference (prior to applying the model for predictions),
     we may exclude certain stations from the dataframe of predictions (more is better in this regard). This function allows 
-    us to eliminate such stations from the geographical data that we have before feeding this data into the map. That way, we
+    us to eliminate such stations from the geographical data we have before feeding this data into the map. That way, we
     don't display stations on the map if we don't have predictions for it.
     
     Args:
