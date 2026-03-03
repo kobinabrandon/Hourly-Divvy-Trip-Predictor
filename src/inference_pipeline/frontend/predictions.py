@@ -105,9 +105,13 @@ def retrieve_predictions_for_this_hour(
         if next_hour_ready: 
             # Save in case the latest prediction is unavailable at a future time
             predictions_for_target_hour: pd.DataFrame = predictions[predictions[f"{scenario}_hour"] == to_hour]
+            backup_predictions_to_postgres(table_name=f"{scenario}_backup_predictions", data=predictions_for_target_hour)
         
         elif previous_hour_ready:
             predictions_for_target_hour = predictions[predictions[f"{scenario}_hour"] == from_hour]
+
+            # Just to increase the chances that a backup will be available, though it may be redundant
+            backup_predictions_to_postgres(table_name=f"{scenario}_backup_predictions", data=predictions_for_target_hour)
 
             if scenario == "start":  
                 st.write("Predictions for the current hour are not available yet. Fetching those from an hour ago.")
