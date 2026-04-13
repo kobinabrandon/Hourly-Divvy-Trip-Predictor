@@ -155,8 +155,8 @@ def train_all_models(tuning_trials: int = config.tuning_trials):
     """
     make_fundamental_paths()  # Ensure that all the necessary directories exist.
     delete_prior_project_from_comet() 
-
     delete_local_saves()
+
     for scenario in ["start", "end"]:
         models_and_errors: dict[tuple[str, str], float] = {}
         delete_best_model_from_previous_run(scenario=scenario)

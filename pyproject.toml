@@ -3,7 +3,8 @@ name = "src"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
+
 dependencies = [
     "comet-ml>=3.56.0",
     "confluent-kafka==2.8.2",
@@ -19,12 +20,13 @@ dependencies = [
     "requests>=2.32.5",
     "scikit-learn>=1.8.0",
     "setuptools==78.1.0",
-    "sqlalchemy==2.0.29",
+    "sqlalchemy==2.0.38",
     "streamlit==1.44.0",
     "streamlit-extras>=0.6.0",
     "tqdm>=4.67.3",
     "xgboost>=3.2.0",
 ]
+
 
 [build-system]
 requires = ["hatchling"]

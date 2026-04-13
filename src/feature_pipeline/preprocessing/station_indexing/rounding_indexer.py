@@ -79,7 +79,9 @@ def make_station_ids_from_unique_coordinates(scenario: str, data: pd.DataFrame) 
 
     # Because tuples can't be keys of a dictionary
     swapped_dict = {station_id: point for point, station_id in points_and_new_ids.items()}
-    with open(ROUNDING_INDEXER / f"rounded_{scenario}_points_and_new_ids.json", mode="w") as file:
+    points_and_id_log_path = ROUNDING_INDEXER.joinpath(f"rounded_{scenario}_points_and_new_ids.json")
+
+    with open(points_and_id_log_path, mode="w") as file:
         json.dump(swapped_dict, file)
 
     return points_and_new_ids

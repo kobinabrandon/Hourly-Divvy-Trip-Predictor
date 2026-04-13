@@ -15,10 +15,8 @@ from datetime import datetime, timedelta
 from src.setup.config import config 
 from src.inference_pipeline.frontend.data import make_geodataframes
 from src.inference_pipeline.frontend.tracker import ProgressTracker
-from src.feature_pipeline.preprocessing.station_indexing.mixed_indexer import fetch_json_of_ids_and_names
-
-
 from src.inference_pipeline.backend.inference import load_predictions_from_store
+from src.feature_pipeline.preprocessing.station_indexing.mixed_indexer import fetch_json_of_ids_and_names
 
 
 @st.cache_data()
@@ -34,6 +32,7 @@ def retrieve_predictions(from_hour: datetime, to_hour: datetime, model_name: str
         tuple[pd.DataFrame, pd.DataFrame]: a list of dataframes of predictions for both arrivals and departures
     """
     prediction_dataframes: list[pd.DataFrame] = []
+    
     for scenario in config.displayed_scenario_names.keys():                
 
         try:
@@ -105,13 +104,9 @@ def retrieve_predictions_for_this_hour(
         if next_hour_ready: 
             # Save in case the latest prediction is unavailable at a future time
             predictions_for_target_hour: pd.DataFrame = predictions[predictions[f"{scenario}_hour"] == to_hour]
-            backup_predictions_to_postgres(table_name=f"{scenario}_backup_predictions", data=predictions_for_target_hour)
         
         elif previous_hour_ready:
             predictions_for_target_hour = predictions[predictions[f"{scenario}_hour"] == from_hour]
-
-            # Just to increase the chances that a backup will be available, though it may be redundant
-            backup_predictions_to_postgres(table_name=f"{scenario}_backup_predictions", data=predictions_for_target_hour)
 
             if scenario == "start":  
                 st.write("Predictions for the current hour are not available yet. Fetching those from an hour ago.")
@@ -122,7 +117,7 @@ def retrieve_predictions_for_this_hour(
                 
                 if scenario == "start":
                     st.write(
-                        f":orange[Could not fetch predictions for  previous hour. Providing predictions from {most_recent_hour_in_backup_predictions}]"
+                        f":orange[Could not fetch predictions for previous hour. Providing predictions from {most_recent_hour_in_backup_predictions}]"
                     )
             except:
                 most_recent_hour_in_received_predictions = predictions[f"{scenario}_hour"].iloc[-1]
@@ -142,8 +137,6 @@ def retrieve_predictions_for_this_hour(
     return start_predictions, end_predictions
 
 
-def backup_predictions_to_postgres(table_name: str, data: pd.DataFrame) -> None:
-    data.to_sql(name=table_name, con=config.database_public_url, if_exists="replace")
 
 def retrieve_backup_predictions(table_name: str) -> pd.DataFrame:
     return pd.read_sql(sql=f'SELECT * FROM {table_name};', con=config.database_public_url)

@@ -33,10 +33,6 @@ def load_predictions_and_historical_trips(
     from_ts = int(from_date.timestamp() * 1000)
     to_ts = int(to_date.timestamp() * 1000)
 
-    #print(from_date)
-    #print(to_ts)
-    #breakpoint()
-
     arrivals_or_departures: str = config.displayed_scenario_names[scenario].lower()
 
     predictions_fg = setup_feature_group(

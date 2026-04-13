@@ -1,22 +1,25 @@
 train:
-	uv run  src/training_pipeline/training.py 
+	uv run src/training_pipeline/training.py 
+
+train:
+	uv run src/training_pipeline/training.py 
 
 training-data:
-	uv run  src/feature_pipeline/preprocessing/core.py 
+	uv run src/feature_pipeline/preprocessing/core.py 
 
 frontend:
-	uv run  streamlit run src/inference_pipeline/frontend/main.py --server.port 8510
+	uv run streamlit run src/inference_pipeline/frontend/main.py --server.port 8510
 
 
 # Backfilling the Feature Store
 backfill-features:
-	uv run  src/inference_pipeline/backend/backfill_feature_store.py --scenarios start end --target features 
+	uv run src/inference_pipeline/backend/backfill_feature_store.py --scenarios start end --target features 
 	
 backfill-predictions:
-	uv run  src/inference_pipeline/backend/backfill_feature_store.py --scenarios start end --target predictions
+	uv run src/inference_pipeline/backend/backfill_feature_store.py --scenarios start end --target predictions
 
 backfill-all: backfill-features backfill-predictions	
-	
+
 
 # Docker
 start-docker:

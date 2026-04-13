@@ -4,10 +4,9 @@ from pathlib import Path
 
 PARENT_DIR = Path("_file_").parent.resolve()
 
-IMAGES_DIR = PARENT_DIR.joinpath("images")
 DATA_DIR = PARENT_DIR.joinpath("data")
-
 RAW_DATA_DIR = DATA_DIR.joinpath("raw")
+IMAGES_DIR = PARENT_DIR.joinpath("images")
 
 MODELS_DIR = PARENT_DIR.joinpath("models")
 LOCAL_SAVE_DIR = MODELS_DIR.joinpath("local_saves")

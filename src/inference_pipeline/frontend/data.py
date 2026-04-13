@@ -2,24 +2,16 @@
 This module contains code responsible for loading the various pieces of data 
 that will be used to deliver the predictions to the streamlit interface.
 """
-import os
-import json
-import requests
 import numpy as np
 import pandas as pd
 import streamlit as st
 
-from tqdm import tqdm
 from pathlib import Path
 from loguru import logger
-from zipfile import ZipFile
-from datetime import datetime
 
 from src.setup.config import config
-from src.setup.paths import ROUNDING_INDEXER, MIXED_INDEXER, GEOGRAPHICAL_DATA
-
-from src.feature_pipeline.feature_engineering import ReverseGeocoder
-from src.inference_pipeline.backend.inference import rerun_feature_pipeline, load_raw_local_geodata
+from src.setup.paths import ROUNDING_INDEXER, MIXED_INDEXER
+from src.inference_pipeline.backend.inference import load_raw_local_geodata
 
 
 @st.cache_data()
@@ -50,8 +42,7 @@ def make_geodataframes(using_mixed_indexer: bool = True) -> tuple[pd.DataFrame, 
 def reconcile_geodata(start_geodataframe: pd.DataFrame, end_geodataframe: pd.DataFrame) -> pd.DataFrame:
     """
     To avoid redundancy, and provide a consistent experience, we will render a single map. Consequently, I can 
-    only use stations that are common to both arrival and departure datasets. This function finds the stations 
-    common to the
+    only use stations that are common to both arrival and departure datasets. 
 
     Returns:
         pd.DataFrame: 
@@ -67,3 +58,4 @@ def reconcile_geodata(start_geodataframe: pd.DataFrame, end_geodataframe: pd.Dat
     )
 
     return common_data
+

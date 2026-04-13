@@ -8,14 +8,15 @@ This module contains code that:
 import os
 import numpy as np
 import pandas as pd
+import streamlit as st
 
 from loguru import logger
 
 from sklearn.pipeline import Pipeline
 from datetime import datetime, timedelta, timezone
 
-from hsfs.feature_group import FeatureGroup
 from hsfs.feature_view import FeatureView
+from hsfs.feature_group import FeatureGroup
 
 from src.setup.config import config
 from src.setup.paths import ROUNDING_INDEXER, MIXED_INDEXER
@@ -23,16 +24,6 @@ from src.feature_pipeline.preprocessing.core import make_training_data
 from src.inference_pipeline.backend.feature_store import setup_feature_group, get_or_create_feature_view
 from src.feature_pipeline.preprocessing.transformations.training_data import transform_ts_into_training_data
 from src.training_pipeline.cleanup import retrieve_name_of_best_model_from_previous_run
-
-
-def get_feature_group_for_time_series(scenario: str, primary_key: list[str]) -> FeatureGroup:
-
-    return setup_feature_group(
-        primary_key=primary_key,
-        description=f"Hourly time series data for {config.displayed_scenario_names[scenario].lower()}",
-        name=f"{scenario}_feature_group",
-        version=config.feature_group_version,
-    )
 
 
 def fetch_time_series_and_make_features(
@@ -66,6 +57,7 @@ def fetch_time_series_and_make_features(
     )
 
     logger.warning("Fetching time series data from the feature store...")
+
     ts_data: pd.DataFrame = feature_view.get_batch_data(
         start_time=start_date, 
         end_time=target_date,
@@ -116,7 +108,7 @@ def make_features(
     return features
 
 
-def fetch_predictions_group(scenario: str, model_name: str) -> FeatureGroup:
+def fetch_predictions_group(scenario: str) -> FeatureGroup:
     """
     Return the feature group used for predictions.
 
@@ -130,11 +122,11 @@ def fetch_predictions_group(scenario: str, model_name: str) -> FeatureGroup:
     if full_model_name == None:
         raise Exception("Failed to retrieve the name of the best model from the previous run")
     else:
-        tuned_or_not: str = "untuned" if "untuned" in full_model_name else "tuned" 
+        tuned_string: str = "Untuned" if "untuned" in full_model_name else "Tuned" 
            
         return setup_feature_group(
             primary_key=[f"{scenario}_station_id"],
-            description=f"predictions on {scenario} data using the {tuned_or_not} {model_name}",
+            description=f"predicting {config.displayed_scenario_names[scenario]} - {tuned_string} {full_model_name}",
             name=f"{full_model_name}_predictions",
             version=config.feature_group_version
         )
@@ -147,7 +139,7 @@ def load_predictions_from_store(
     model_name: str,
     aggregate_predictions: bool = False, 
     aggregation_method: str = "mean"
-    ) -> pd.DataFrame:
+    ) -> pd.DataFrame | None:
     """
     Load a dataframe containing predictions from their dedicated feature group on the offline feature store.
     This dataframe will contain predicted values between the specified hours. 
@@ -165,32 +157,38 @@ def load_predictions_from_store(
     # Ensure these times are datatimes
     from_hour = pd.to_datetime(from_hour, utc=True)
     to_hour = pd.to_datetime(to_hour, utc=True)
-        
-    predictions_group = fetch_predictions_group(scenario=scenario, model_name=model_name)
+
+    full_model_name: str|None = retrieve_name_of_best_model_from_previous_run(scenario=scenario)
+    predictions_group = fetch_predictions_group(scenario=scenario)
 
     predictions_feature_view: FeatureView = get_or_create_feature_view(
-        name=f"{model_name}_{scenario}_predictions",
+        name=f"{full_model_name}_predictions",
         feature_group=predictions_group,
         version=config.feature_view_version
     )
 
     predictions_df = predictions_feature_view.get_batch_data(
-        start_time=from_hour - timedelta(days=1), 
-        end_time=to_hour + timedelta(days=1)
+        start_time=from_hour - timedelta(hours=1), 
+        end_time=to_hour + timedelta(hours=1)
     )
 
     predictions_df[f"{scenario}_hour"] = pd.to_datetime(predictions_df[f"{scenario}_hour"], utc=True)
+
     predictions_df = predictions_df.drop("timestamp", axis=1)
 
     predictions_df: pd.DataFrame = predictions_df.sort_values(
         by=[f"{scenario}_hour", f"{scenario}_station_id"]
     )
-    
+
     if aggregate_predictions and aggregation_method.lower() in ["sum", "mean"]:
-        return get_aggregate_predictions(scenario=scenario, predictions=predictions_df, aggregation_method=aggregation_method)
+        return get_aggregate_predictions(
+                scenario=scenario, 
+                predictions=predictions_df, 
+                aggregation_method=aggregation_method
+        )
     elif not aggregate_predictions:
         return predictions_df.reset_index(drop=True)
-    
+
 
 def get_model_predictions(scenario: str, model: Pipeline, features: pd.DataFrame) -> pd.DataFrame:
     """
@@ -251,7 +249,7 @@ def rerun_feature_pipeline():
                 logger.warning(message)
                 st.spinner(message)
 
-                make_training_data(data=raw_data, for_inferenc=False, geocode=False)
+                make_training_data(data=raw_data, for_inference=False, geocode=False)
                 return fn(*args, **kwargs)
         return wrapper
     return decorator
@@ -281,6 +279,6 @@ def load_raw_local_geodata(scenario: str) -> pd.DataFrame | None:
     else:
         raise FileNotFoundError("No geographical data has been made. Running the feature pipeline...")
 
-    with open(geodata_path, mode="r") as file:
+    with open(geodata_path, mode="r"):
         return pd.read_parquet(geodata_path)
 

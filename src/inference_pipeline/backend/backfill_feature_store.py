@@ -2,12 +2,15 @@
 This module contains the code that is used to backfill feature and prediction 
 data.
 """
+import os
+import json
 import pandas as pd
 from loguru import logger
 from argparse import ArgumentParser
 from datetime import datetime, timedelta
 
 from sklearn.pipeline import Pipeline
+from hsfs.feature_group import FeatureGroup
 
 from src.setup.config import config
 from src.feature_pipeline.data_sourcing import load_raw_data 
@@ -15,7 +18,6 @@ from src.feature_pipeline.preprocessing.core import make_time_series
 from src.training_pipeline.cleanup import retrieve_name_of_best_model_from_previous_run
 
 from src.inference_pipeline.backend.inference import (
-    get_feature_group_for_time_series, 
     fetch_time_series_and_make_features, 
     get_model_predictions
 )
@@ -45,6 +47,17 @@ def backfill_features(scenario: str) -> None:
     ts_feature_group.insert(write_options={"wait_for_job": True}, features=ts_data)  # Push time series data to the feature group
 
 
+def get_feature_group_for_time_series(scenario: str, primary_key: list[str]) -> FeatureGroup:
+
+    return setup_feature_group(
+        primary_key=primary_key,
+        description=f"Hourly time series data for {config.displayed_scenario_names[scenario].lower()}",
+        name=f"{scenario}_feature_group",
+        version=config.feature_group_version,
+    )
+
+
+
 def backfill_predictions(scenario: str, target_date: datetime) -> None: 
     """
     Fetch the registered version of the named model, and download it. Then load a batch of ts_data
@@ -64,6 +77,8 @@ def backfill_predictions(scenario: str, target_date: datetime) -> None:
 
     if isinstance(full_model_name, str):
         tuned: bool = False if "untuned" in full_model_name else True 
+        tuned_string = "Tuned" if tuned else "Untuned" 
+
         model: Pipeline = download_model(full_model_name=full_model_name)
         ts_feature_group = get_feature_group_for_time_series(scenario=scenario, primary_key=primary_key)
 
@@ -76,14 +91,14 @@ def backfill_predictions(scenario: str, target_date: datetime) -> None:
         )
 
         try:
-            features = features.drop(["trips_next_hour", f"{scenario}_hour"], axis=1)
+            features = features.drop(
+                ["trips_next_hour", f"{scenario}_hour"], axis=1
+            )
         except Exception as error:
             logger.error(error)    
 
         predictions: pd.DataFrame = get_model_predictions(scenario=scenario, model=model, features=features)
         predictions = predictions.drop_duplicates().reset_index(drop=True)
-
-        tuned_string = "Tuned" if tuned else "Untuned" 
 
         predictions_feature_group = setup_feature_group(
             primary_key=primary_key,
@@ -93,6 +108,10 @@ def backfill_predictions(scenario: str, target_date: datetime) -> None:
         )
 
         predictions_feature_group.insert(write_options={"wait_for_job": True}, features=predictions)
+
+        logger.info("Backing up predictions to POSTGRES")
+        predictions.to_sql(name=f"{scenario}_backup_predictions", con=config.database_public_url, if_exists="replace")
+
     else:
         raise Exception("Could not identify the best existing model")
 
@@ -111,3 +130,4 @@ if __name__ == "__main__":
             backfill_predictions(scenario=scenario, target_date=datetime.now())
         else:
             raise Exception('The only acceptable targets of the command are "features" and "predictions"')
+

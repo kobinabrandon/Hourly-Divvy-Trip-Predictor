@@ -14,9 +14,9 @@ import optuna
 from optuna.samplers import TPESampler
 from optuna.pruners import MedianPruner
 
+from sklearn.pipeline import make_pipeline
 from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import TimeSeriesSplit
-from sklearn.pipeline import make_pipeline
 
 from xgboost import XGBRegressor
 from lightgbm import LGBMRegressor
@@ -111,6 +111,7 @@ def tune_hyperparameters(
         pipeline = make_pipeline(model_fn(**hyperparameters))
 
         logger.warning(f"Starting Trial {trial.number}")
+
         # Use TSS to split the features and target variables for training and validation
         for split_number, (train_indices, val_indices) in enumerate(tss.split(x)):
             logger.info(f"Performing split number {split_number}")
@@ -138,8 +139,8 @@ def tune_hyperparameters(
     best_hyperparams = study.best_params
     best_value = study.best_value
 
-    # experiment.log_parameters(best_hyperparams)
-    # experiment.log_metric(name="Best MAE Across Trials", value=best_value)
+    experiment.log_parameters(best_hyperparams)
+    experiment.log_metric(name="Best MAE Across Trials", value=best_value)
 
     logger.info(f"The best hyperparameters for the {model_name} model are: {best_hyperparams}")
     logger.success(f"Best MAE Across Trials: {best_value}")
