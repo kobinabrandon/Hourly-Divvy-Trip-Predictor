@@ -44,7 +44,6 @@ def retrieve_predictions(from_hour: datetime, next_hour: datetime) -> tuple[pd.D
 
             # Now to add station names to the received predictions
             ids_and_names = fetch_json_of_ids_and_names(scenario=scenario, using_mixed_indexer=True, invert=False)        
-            breakpoint()
             predictions[f"{scenario}_station_name"] = predictions[f"{scenario}_station_id"].map(ids_and_names)
             prediction_dataframes.append(predictions)
 
