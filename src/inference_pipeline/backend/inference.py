@@ -135,7 +135,7 @@ def fetch_predictions_group(scenario: str) -> FeatureGroup:
 def load_predictions_from_store(
     scenario: str, 
     from_hour: datetime, 
-    next_hour: datetime, 
+    to_hour: datetime, 
     aggregate_predictions: bool = False, 
     aggregation_method: str = "mean"
     ) -> pd.DataFrame | None:
@@ -146,7 +146,7 @@ def load_predictions_from_store(
     Args:
         model_name: the model's name is part of the name of the feature view to be queried
         from_hour: the first hour for which we want the predictions
-        next_hour: the last hour for would like to receive predictions.
+        to_hour: the last hour for would like to receive predictions.
 
     Returns:
         pd.DataFrame: the dataframe containing predictions.
@@ -155,7 +155,7 @@ def load_predictions_from_store(
 
     # Ensure these times are datatimes
     from_hour = pd.to_datetime(from_hour, utc=True)
-    next_hour = pd.to_datetime(next_hour, utc=True)
+    to_hour = pd.to_datetime(to_hour, utc=True)
 
     full_model_name: str|None = retrieve_name_of_best_model_from_previous_run(scenario=scenario)
     predictions_group = fetch_predictions_group(scenario=scenario)
@@ -168,7 +168,7 @@ def load_predictions_from_store(
 
     predictions_df = predictions_feature_view.get_batch_data(
         start_time=from_hour - timedelta(hours=1), 
-        end_time=next_hour + timedelta(hours=1)
+        end_time=to_hour + timedelta(hours=1)
     )
 
     predictions_df[f"{scenario}_hour"] = pd.to_datetime(predictions_df[f"{scenario}_hour"], utc=True)

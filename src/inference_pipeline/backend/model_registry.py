@@ -28,7 +28,6 @@ def push_model(full_model_name: str, status: str, version: str) -> None:
     """
     running_experiment = get_global_experiment()
     experiment = ExistingExperiment(api_key=running_experiment.api_key, experiment_key=running_experiment.id)
-    # breakpoint()
     model_file_path: Path = LOCAL_SAVE_DIR.joinpath(f"{full_model_name}")
 
     logger.info("Logging model to Comet ML")
