@@ -20,7 +20,7 @@ from src.feature_pipeline.preprocessing.station_indexing.mixed_indexer import fe
 
 
 @st.cache_data()
-def retrieve_predictions(from_hour: datetime, next_hour: datetime, model_name: str = "xgboost") -> tuple[pd.DataFrame, pd.DataFrame]:
+def retrieve_predictions(from_hour: datetime, next_hour: datetime) -> tuple[pd.DataFrame, pd.DataFrame]:
     """ 
     Download all the predictions for all the stations from one hour to another
 
@@ -38,13 +38,13 @@ def retrieve_predictions(from_hour: datetime, next_hour: datetime, model_name: s
         try:
             predictions: pd.DataFrame = load_predictions_from_store(
                 scenario=scenario,
-                model_name=model_name,
                 from_hour=from_hour, 
                 next_hour=next_hour
             )
 
             # Now to add station names to the received predictions
             ids_and_names = fetch_json_of_ids_and_names(scenario=scenario, using_mixed_indexer=True, invert=False)        
+            breakpoint()
             predictions[f"{scenario}_station_name"] = predictions[f"{scenario}_station_id"].map(ids_and_names)
             prediction_dataframes.append(predictions)
 
@@ -73,7 +73,7 @@ def retrieve_predictions_for_this_hour(
     predicted_starts: pd.DataFrame,
     predicted_ends: pd.DataFrame,
     from_hour: datetime,
-    next_hour: datetime
+    to_hour: datetime
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Initialise an inference object, and load the dataframes of predictions which we already fetched from their 
@@ -96,19 +96,20 @@ def retrieve_predictions_for_this_hour(
     all_predictions_this_hour = []
     scenario_and_predictions = {"start": predicted_starts, "end": predicted_ends}   
 
-    st.write(f"PREV: {from_hour}")
-    st.write(f"TO: {next_hour}")
-
     for scenario in scenario_and_predictions.keys():
         predictions = scenario_and_predictions[scenario]
 
         next_hour_ready = False if predictions[predictions[f"{scenario}_hour"] == next_hour].empty else True
         previous_hour_ready = False if predictions[predictions[f"{scenario}_hour"] == from_hour].empty else True
+        breakpoint()
 
         if next_hour_ready: 
             # Save in case the latest prediction is unavailable at a future time
             predictions_for_target_hour: pd.DataFrame = predictions[predictions[f"{scenario}_hour"] == next_hour]
-        
+
+            # "Backing up predictions to POSTGRES"
+            predictions.to_sql(name=f"{scenario}_backup_predictions", con=config.database_public_url, if_exists="replace")
+            
         elif previous_hour_ready:
             predictions_for_target_hour = predictions[predictions[f"{scenario}_hour"] == from_hour]
 
@@ -327,10 +328,13 @@ def make_map(_geodataframe_and_predictions: pd.DataFrame) -> None:
 if __name__ == "__main__":
 
     tracker = ProgressTracker(n_steps=5)
-    from_hour = config.current_hour
+
+    from_hour = config.current_hour - timedelta(hours=1)
+    to_hour = config.current_hour 
+
     next_hour = config.current_hour + timedelta(hours=1)
 
-    _ = st.header(body=f":violet[Predictions for {from_hour.hour}:00 - {next_hour.hour}:00 (UTC)]", divider=True)
+    _ = st.header(body=f":violet[Predictions for {to_hour.hour}:00 - {next_hour.hour}:00 (UTC)]", divider=True)
     _ = st.markdown(
         """
         After a bit of loading, a map of the city and its environs should appear, with points littered all over it.
@@ -349,13 +353,13 @@ if __name__ == "__main__":
     st.sidebar.write("✅ Finished gathering all station details")
 
     with st.spinner(text=f"Fetching all predictions from the offline feature store"):
-        predicted_starts, predicted_ends = retrieve_predictions(from_hour=from_hour, next_hour=next_hour)
+        predicted_starts, predicted_ends = retrieve_predictions(from_hour=from_hour, next_hour=to_hour)
 
         predicted_starts_this_hour, predicted_ends_this_hour = retrieve_predictions_for_this_hour(
             predicted_starts=predicted_starts,
             predicted_ends=predicted_ends,
             from_hour=from_hour,
-            next_hour=next_hour
+            to_hour=to_hour
         )
 
         tracker.next()

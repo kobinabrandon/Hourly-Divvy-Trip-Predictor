@@ -109,9 +109,6 @@ def backfill_predictions(scenario: str, target_date: datetime) -> None:
 
         predictions_feature_group.insert(write_options={"wait_for_job": True}, features=predictions)
 
-        logger.info("Backing up predictions to POSTGRES")
-        predictions.to_sql(name=f"{scenario}_backup_predictions", con=config.database_public_url, if_exists="replace")
-
     else:
         raise Exception("Could not identify the best existing model")
 
