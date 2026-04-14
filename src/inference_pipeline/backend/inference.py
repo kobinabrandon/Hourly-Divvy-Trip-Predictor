@@ -136,7 +136,6 @@ def load_predictions_from_store(
     scenario: str, 
     from_hour: datetime, 
     to_hour: datetime, 
-    model_name: str,
     aggregate_predictions: bool = False, 
     aggregation_method: str = "mean"
     ) -> pd.DataFrame | None:

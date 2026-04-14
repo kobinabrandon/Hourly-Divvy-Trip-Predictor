@@ -20,13 +20,13 @@ from src.feature_pipeline.preprocessing.station_indexing.mixed_indexer import fe
 
 
 @st.cache_data()
-def retrieve_predictions(from_hour: datetime, to_hour: datetime, model_name: str = "xgboost") -> tuple[pd.DataFrame, pd.DataFrame]:
+def retrieve_predictions(from_hour: datetime, next_hour: datetime, model_name: str = "xgboost") -> tuple[pd.DataFrame, pd.DataFrame]:
     """ 
     Download all the predictions for all the stations from one hour to another
 
     Args:
         from_hour (datetime, optional): From which hour we want to fetch predictions. Defaults to the previous hour.
-        to_hour (datetime, optional): the hour we want predictions for. Defaults to the current hour.
+        next_hour (datetime, optional): the hour we want predictions for. Defaults to the current hour.
 
     Returns:
         tuple[pd.DataFrame, pd.DataFrame]: a list of dataframes of predictions for both arrivals and departures
@@ -40,7 +40,7 @@ def retrieve_predictions(from_hour: datetime, to_hour: datetime, model_name: str
                 scenario=scenario,
                 model_name=model_name,
                 from_hour=from_hour, 
-                to_hour=to_hour
+                next_hour=next_hour
             )
 
             # Now to add station names to the received predictions
@@ -73,7 +73,7 @@ def retrieve_predictions_for_this_hour(
     predicted_starts: pd.DataFrame,
     predicted_ends: pd.DataFrame,
     from_hour: datetime,
-    to_hour: datetime
+    next_hour: datetime
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Initialise an inference object, and load the dataframes of predictions which we already fetched from their 
@@ -85,7 +85,7 @@ def retrieve_predictions_for_this_hour(
         predicted_ends (pd.DataFrame): the dataframe of of all predicted arrivals for all stations and hours.
         include_station_names (bool): whether to add a column of station names to the predictions. Defaults to True.
         from_hour (datetime, optional): From which hour we want to fetch predictions. Defaults to the previous hour.
-        to_hour (datetime, optional): the hour we want predictions for. Defaults to the current hour.
+        next_hour (datetime, optional): the hour we want predictions for. Defaults to the current hour.
 
     Raises:
         Exception: In the event that the predictions for the current hour, or the previous one cannot be obtained.
@@ -96,14 +96,18 @@ def retrieve_predictions_for_this_hour(
     all_predictions_this_hour = []
     scenario_and_predictions = {"start": predicted_starts, "end": predicted_ends}   
 
+    st.write(f"PREV: {from_hour}")
+    st.write(f"TO: {next_hour}")
+
     for scenario in scenario_and_predictions.keys():
         predictions = scenario_and_predictions[scenario]
-        next_hour_ready = False if predictions[predictions[f"{scenario}_hour"] == to_hour].empty else True
+
+        next_hour_ready = False if predictions[predictions[f"{scenario}_hour"] == next_hour].empty else True
         previous_hour_ready = False if predictions[predictions[f"{scenario}_hour"] == from_hour].empty else True
 
         if next_hour_ready: 
             # Save in case the latest prediction is unavailable at a future time
-            predictions_for_target_hour: pd.DataFrame = predictions[predictions[f"{scenario}_hour"] == to_hour]
+            predictions_for_target_hour: pd.DataFrame = predictions[predictions[f"{scenario}_hour"] == next_hour]
         
         elif previous_hour_ready:
             predictions_for_target_hour = predictions[predictions[f"{scenario}_hour"] == from_hour]
@@ -114,7 +118,7 @@ def retrieve_predictions_for_this_hour(
             try:
                 predictions_for_target_hour = retrieve_backup_predictions(table_name=f"{scenario}_backup_predictions")
                 most_recent_hour_in_backup_predictions = predictions_for_target_hour[f"{scenario}_hour"].iloc[-1]
-                
+
                 if scenario == "start":
                     st.write(
                         f":orange[Could not fetch predictions for previous hour. Providing predictions from {most_recent_hour_in_backup_predictions}]"
@@ -323,12 +327,10 @@ def make_map(_geodataframe_and_predictions: pd.DataFrame) -> None:
 if __name__ == "__main__":
 
     tracker = ProgressTracker(n_steps=5)
-    from_hour = config.current_hour - timedelta(hours=1)
-    to_hour = config.current_hour 
-
+    from_hour = config.current_hour
     next_hour = config.current_hour + timedelta(hours=1)
 
-    _ = st.header(body=f":violet[Predictions for {to_hour.hour}:00 - {next_hour.hour}:00 (UTC)]", divider=True)
+    _ = st.header(body=f":violet[Predictions for {from_hour.hour}:00 - {next_hour.hour}:00 (UTC)]", divider=True)
     _ = st.markdown(
         """
         After a bit of loading, a map of the city and its environs should appear, with points littered all over it.
@@ -347,18 +349,19 @@ if __name__ == "__main__":
     st.sidebar.write("✅ Finished gathering all station details")
 
     with st.spinner(text=f"Fetching all predictions from the offline feature store"):
-        predicted_starts, predicted_ends = retrieve_predictions(from_hour=from_hour, to_hour=to_hour)
+        predicted_starts, predicted_ends = retrieve_predictions(from_hour=from_hour, next_hour=next_hour)
 
         predicted_starts_this_hour, predicted_ends_this_hour = retrieve_predictions_for_this_hour(
             predicted_starts=predicted_starts,
             predicted_ends=predicted_ends,
             from_hour=from_hour,
-            to_hour=to_hour
+            next_hour=next_hour
         )
 
         tracker.next()
 
     with st.spinner(text="Looking up the stations that we have predictions for"):
+
         start_geodataframe = restrict_geodataframe_to_stations_with_predictions(
             scenario="start", 
             predictions=predicted_starts_this_hour,
