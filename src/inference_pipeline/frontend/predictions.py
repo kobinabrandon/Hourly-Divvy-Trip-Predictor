@@ -100,7 +100,6 @@ def retrieve_predictions_for_this_hour(
 
         next_hour_ready = False if predictions[predictions[f"{scenario}_hour"] == next_hour].empty else True
         previous_hour_ready = False if predictions[predictions[f"{scenario}_hour"] == from_hour].empty else True
-        breakpoint()
 
         if next_hour_ready: 
             # Save in case the latest prediction is unavailable at a future time
