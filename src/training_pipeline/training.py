@@ -21,7 +21,13 @@ from src.inference_pipeline.backend.model_registry import push_model
 from src.training_pipeline.models import get_full_model_name, get_model 
 from src.training_pipeline.hyperparameter_tuning import tune_hyperparameters
 from src.setup.paths import TRAINING_DATA, LOCAL_SAVE_DIR, make_fundamental_paths
-from src.training_pipeline.cleanup import delete_local_saves, identify_best_model, delete_prior_project_from_comet, delete_best_model_from_previous_run 
+
+from src.training_pipeline.cleanup import (
+    delete_local_saves, 
+    identify_best_model, 
+    delete_prior_project_from_comet, 
+    delete_best_model_from_previous_run 
+) 
 
 
 def get_or_make_training_data(scenario: str) -> tuple[pd.DataFrame, pd.Series]:
@@ -34,7 +40,7 @@ def get_or_make_training_data(scenario: str) -> tuple[pd.DataFrame, pd.Series]:
     assert scenario.lower() in ["start", "end"]
     data_path = TRAINING_DATA.joinpath(f"{scenario}s.parquet")
     
-    if Path(data_path).is_file():
+    if data_path.is_file():
         training_data: pd.DataFrame = pd.read_parquet(path=data_path)
         logger.success(f"Fetched saved training data for {config.displayed_scenario_names[scenario].lower()}")
     else:

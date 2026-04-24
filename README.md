@@ -33,13 +33,14 @@ Build a complete end-to-end machine learning system that culminates in a simple 
 - Github actions are used to backfill the feature store with new predictions every hour.
 
 ## Use the App
-A containerised version of the app is available [here](https://www.hourly-divvy-trip-predictor-production.up.railway.app).
+A containerised version of the app is available [here](https://melodious-wisdom-production-2431.up.railway.app/).
+
 
 ## Alternatively, you can build the project locally by doing the following:
 
 1. Clone the repository:
     ```
-    $ git clone https://kobina.seednode.xyz/zVhC4MGvgB8YMjvBuBNoQsSGtac6.git hourly-divvy-trip-predictor
+    $ git clone https://kobina.seednode.xyz/z28KXW2Sw7dY4NADypvZFzYFqLicu.git hourly-divvy-trip-predictor
     ```
 
 2. Install UV
@@ -49,11 +50,11 @@ A containerised version of the app is available [here](https://www.hourly-divvy-
 
 3. Enter the project directory and run:
     ```
-    $ poetry install
+    $ uv sync 
     ```
 
 4. Register free accounts on [Hopsworks](https://c.app.hopsworks.ai/) and [CometML](https://www.comet.com/). 
-   Then copy your project names(for both platforms), API keys(again for both platforms), Comet workspace name, and email address into a .env file.
+   Then copy your project names(for both platforms), API keys(again for both platforms), Comet workspace name, and email address into kn .env file.
 
 5. Run the training pipeline:
     ```
@@ -72,4 +73,4 @@ A containerised version of the app is available [here](https://www.hourly-divvy-
 8. View the frontend:
     ```
     $ make frontend
-    ```
+ 
