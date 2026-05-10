@@ -120,7 +120,9 @@ def train(scenario: str, base_name: str, tune: bool, tuning_trials: int | None) 
         )
 
         logger.success(f"Best model hyperparameters {best_model_hyperparameters}")
-        pipeline = make_pipeline(  model_fn(**best_model_hyperparameters)  )
+        pipeline = make_pipeline(  
+            model_fn(**best_model_hyperparameters)  
+        )
 
     logger.info("Fitting model...")
 

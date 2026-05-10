@@ -35,7 +35,16 @@ def push_model(full_model_name: str, status: str, version: str) -> None:
     logger.success(f"Finished logging the {full_model_name} model")
 
     logger.info(f'Pushing version {version} of the model to the registry under "{status.title()}"...')
-    _ = experiment.register_model(model_name=full_model_name, status=status, version=version)
+
+    try:
+        _ = experiment.register_model(
+            model_name=full_model_name, 
+            status=status, 
+            version=version,
+            sync=True
+        )
+    except:
+        logger.error(f"Failed to register {full_model_name} on Comet")
 
 
 def download_model(full_model_name: str) -> Pipeline:

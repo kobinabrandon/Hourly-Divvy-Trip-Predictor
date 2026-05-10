@@ -74,3 +74,5 @@ A containerised version of the app is available [here](https://melodious-wisdom-
     ```
     $ make frontend
  
+
+# Codebase Structure 

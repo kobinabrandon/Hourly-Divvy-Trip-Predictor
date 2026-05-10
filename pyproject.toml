@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 
 dependencies = [
-    "comet-ml>=3.56.0",
+    "comet-ml==3.57.4",
     "confluent-kafka==2.8.2",
     "geopy>=2.4.1",
     "hopsworks==4.7.2",

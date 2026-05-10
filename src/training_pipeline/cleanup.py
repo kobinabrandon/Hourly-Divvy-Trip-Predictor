@@ -105,6 +105,9 @@ def retrieve_name_of_best_model_from_previous_run(scenario: str) -> str | None:
             model_name = file.read()
 
         return model_name 
+    else:
+        logger.error(f"No .txt file containing the name of the best model for {scenario}")
+        return  None
 
 
 def delete_local_saves():

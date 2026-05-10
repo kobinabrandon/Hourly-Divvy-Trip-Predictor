@@ -1,9 +1,6 @@
 train:
 	uv run src/training_pipeline/training.py 
 
-train:
-	uv run src/training_pipeline/training.py 
-
 training-data:
 	uv run src/feature_pipeline/preprocessing/core.py 
 
