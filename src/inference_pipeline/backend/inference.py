@@ -5,6 +5,7 @@ This module contains code that:
 - loads model predictions from the Hopsworks feature store.
 - performs inference on features
 """
+from src.feature_pipeline.data_sourcing import load_raw_data
 import os
 import numpy as np
 import pandas as pd
@@ -119,6 +120,7 @@ def fetch_predictions_group(scenario: str) -> FeatureGroup:
         FeatureGroup: the feature group for the given model's predictions.
     """
     full_model_name: str|None = retrieve_name_of_best_model_from_previous_run(scenario=scenario)
+
     if full_model_name == None:
         raise Exception("Failed to retrieve the name of the best model from the previous run")
     else:
@@ -248,6 +250,7 @@ def rerun_feature_pipeline():
                 logger.warning(message)
                 st.spinner(message)
 
+                raw_data: pd.DataFrame = load_raw_data()
                 make_training_data(data=raw_data, for_inference=False, geocode=False)
                 return fn(*args, **kwargs)
         return wrapper

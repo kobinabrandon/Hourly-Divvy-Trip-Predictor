@@ -60,7 +60,7 @@ def download_model(full_model_name: str) -> Pipeline:
     """
     make_fundamental_paths()
     save_path: Path = COMET_SAVE_DIR.joinpath(f"{full_model_name}")
-    registered_model_version = get_registered_model_version(full_model_name=full_model_name)
+    registered_model_version: str = get_registered_model_version(full_model_name=full_model_name)
 
     if not save_path.exists():
 
